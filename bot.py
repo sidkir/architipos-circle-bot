@@ -4,7 +4,6 @@ import json
 import os
 from flask import Flask, request
 
-# Токен от BotFather
 TOKEN = "7852344235:AAHy7AZrf2bJ7Zo0wvRHVi7QgNASgvbUvtI"
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
@@ -22,12 +21,12 @@ def start(message):
     bot.send_message(
         message.chat.id,
         "Привет! Я бот с метафорическими картами 🎴\n\n"
-        "🃏 Отправь /card — получишь случайную карту (пару)\n"
-        "📎 Перешли 2 изображения — бот сам добавит их в колоду\n"
-        "📤 Отправь /export — и получишь весь cards.json"
+        "🃏 /card — случайная карта (или пара)\n"
+        "📎 Перешли 2 фото — добавлю их в колоду\n"
+        "📤 /export — скачать базу карт"
     )
 
-# Команда /card — случайная карта/пара
+# Команда /card
 @bot.message_handler(commands=['card'])
 def send_card(message):
     if not cards:
@@ -44,16 +43,7 @@ def send_card(message):
     else:
         bot.send_message(message.chat.id, "🔸 Только текстовая карта (без изображений)")
 
-# Команда /test — тестовая картинка
-@bot.message_handler(commands=['test'])
-def test(message):
-    bot.send_photo(
-        message.chat.id,
-        "AgACAgIAAyEFAASW95Q3AAMCZ-grWGJPNQABtpBnOV1AfZUImVIMAAKo8zEbA-NASwmJMG6lHi6QAQADAgADeQADNgQ",
-        caption="Тестовая картинка"
-    )
-
-# Команда /export — отправить файл cards.json
+# Команда /export
 @bot.message_handler(commands=['export'])
 def export_cards(message):
     try:
@@ -62,28 +52,52 @@ def export_cards(message):
     except Exception as e:
         bot.send_message(message.chat.id, f"⚠️ Не удалось экспортировать файл: {str(e)}")
 
-# Временное хранилище для первой картинки (при сборе пары)
+# Временное хранилище первой картинки
 temp_photos = {}
 
-# Обработка изображений: сбор пар + вывод file_id
+# Обработка фото
 @bot.message_handler(content_types=['photo'])
 def handle_photo(message):
     chat_id = message.chat.id
     file_id = message.photo[-1].file_id
 
-    # Показываем file_id
     bot.send_message(chat_id, f"📎 file_id: {file_id}")
 
     if chat_id in temp_photos:
-        # Вторая картинка — создаём пару
-        pair = {
-            "file_ids": [
-                temp_photos[chat_id],
-                file_id
-            ]
-        }
+        # Вторая картинка — создать пару
+        pair = {"file_ids": [temp_photos[chat_id], file_id]}
 
-        # Загружаем старые карты
         try:
             with open("cards.json", "r", encoding="utf-8") as f:
                 cards_data = json.load(f)
+        except:
+            cards_data = []
+
+        cards_data.append(pair)
+
+        try:
+            with open("cards.json", "w", encoding="utf-8") as f:
+                json.dump(cards_data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            bot.send_message(chat_id, f"⚠️ Ошибка сохранения: {e}")
+            return
+
+        bot.send_message(chat_id, "✅ Пара сохранена!")
+        temp_photos.pop(chat_id)
+    else:
+        temp_photos[chat_id] = file_id
+        bot.send_message(chat_id, "📥 Первая картинка получена. Отправь вторую.")
+
+# Webhook
+@app.route(f"/{TOKEN}", methods=["POST"])
+def webhook():
+    update = telebot.types.Update.de_json(request.stream.read().decode("utf-8"))
+    bot.process_new_updates([update])
+    return "OK", 200
+
+# Запуск сервера
+if __name__ == "__main__":
+    bot.remove_webhook()
+    bot.set_webhook(url=f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/{TOKEN}")
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
