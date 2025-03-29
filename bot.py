@@ -16,6 +16,10 @@ except Exception as e:
     cards = [{"name": "Ошибка", "description": str(e)}]
 
 # Команда /start
-@bot.message_handler(commands=['start'])
-def start(message):
-    bot.send_message(message.chat.id, "Привет! Я бот с метафорическими картами 🎴\nНапиши /card, чтобы вытянуть_
+@bot.message_handler(commands=['card'])
+def send_card(message):
+    card = random.choice(cards)
+    if "file_id" in card:
+        bot.send_photo(message.chat.id, card["file_id"], caption=f"{card['name']}\n\n{card['description']}")
+    else:
+        bot.send_message(message.chat.id, f"{card['name']}\n\n{card['description']}")
