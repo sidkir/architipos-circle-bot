@@ -1,39 +1,30 @@
 import telebot
 import random
+import json
 
-TOKEN = "7852344235:AAHy7AZrf2bJ7Zo0wvRHVi7QgNASgvbUvtI"
+TOKEN = "ТВОЙ_ТОКЕН_ОТ_BOTFATHER"
 
 bot = telebot.TeleBot(TOKEN)
 
-cards = [
-    {"name": "Карта 1", "description": "Описание карты 1"},
-    {"name": "Карта 2", "description": "Описание карты 2"},
-    {"name": "Карта 3", "description": "Описание карты 3"},
-]
+# Загружаем карты из файла cards.json
+try:
+    with open("cards.json", "r", encoding="utf-8") as file:
+        cards = json.load(file)
+except Exception as e:
+    cards = [{"name": "Ошибка загрузки карт", "description": str(e)}]
 
 @bot.message_handler(commands=['start'])
 def start_message(message):
-    bot.send_message(message.chat.id, "Привет! Нажми /card, чтобы получить случайную карту.")
+    bot.send_message(message.chat.id, "Привет! Я бот с метафорическими картами.\nНажми /card, чтобы вытянуть карту 🎴")
 
 @bot.message_handler(commands=['card'])
 def send_card(message):
     card = random.choice(cards)
-    bot.send_message(message.chat.id, f"Твоя карта: {card['name']}\n\n{card['description']}")
-
-bot.polling()
-
-
-@bot.message_handler(content_types=['photo'])
-def get_file_id(message):
-    if message.forward_from or message.forward_from_chat:
-        # Это пересланное сообщение
-        file_id = message.photo[-1].file_id
-        bot.send_message(message.chat.id, f"Вот file_id пересланной картинки:\n{file_id}")
+    if "file_id" in card:
+        bot.send_photo(message.chat.id, card["file_id"], caption=f"🔮 {card['name']}\n\n{card['description']}")
     else:
-        # Просто фото
-        file_id = message.photo[-1].file_id
-        bot.send_message(message.chat.id, f"Вот file_id картинки:\n{file_id}")
+        bot.send_message(message.chat.id, f"🔮 {card['name']}\n\n{card['description']}")
 
-def get_file_id(message):
-    file_id = message.photo[-1].file_id
-    bot.send_message(message.chat.id, f"Вот file_id этой картинки:\n{file_id}")
+# Обработка фото для получения file_id
+@bot.message_handler(content_types=['photo'])
+def get_file_id
