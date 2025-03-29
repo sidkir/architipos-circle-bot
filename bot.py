@@ -1,0 +1,23 @@
+import telebot
+import random
+
+TOKEN = "СЮДА_ВСТАВЬ_ТОКЕН_БОТА"
+
+bot = telebot.TeleBot(TOKEN)
+
+cards = [
+    {"name": "Карта 1", "description": "Описание карты 1"},
+    {"name": "Карта 2", "description": "Описание карты 2"},
+    {"name": "Карта 3", "description": "Описание карты 3"},
+]
+
+@bot.message_handler(commands=['start'])
+def start_message(message):
+    bot.send_message(message.chat.id, "Привет! Нажми /card, чтобы получить случайную карту.")
+
+@bot.message_handler(commands=['card'])
+def send_card(message):
+    card = random.choice(cards)
+    bot.send_message(message.chat.id, f"Твоя карта: {card['name']}\n\n{card['description']}")
+
+bot.polling()
