@@ -5,6 +5,7 @@ import json
 TOKEN = "7852344235:AAHy7AZrf2bJ7Zo0wvRHVi7QgNASgvbUvtI"
 
 bot = telebot.TeleBot(TOKEN)
+bot.remove_webhook()
 
 # Загружаем карты из файла cards.json
 try:
