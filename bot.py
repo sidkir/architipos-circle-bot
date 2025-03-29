@@ -22,7 +22,18 @@ def send_card(message):
 
 bot.polling()
 
+
 @bot.message_handler(content_types=['photo'])
+def get_file_id(message):
+    if message.forward_from or message.forward_from_chat:
+        # Это пересланное сообщение
+        file_id = message.photo[-1].file_id
+        bot.send_message(message.chat.id, f"Вот file_id пересланной картинки:\n{file_id}")
+    else:
+        # Просто фото
+        file_id = message.photo[-1].file_id
+        bot.send_message(message.chat.id, f"Вот file_id картинки:\n{file_id}")
+
 def get_file_id(message):
     file_id = message.photo[-1].file_id
     bot.send_message(message.chat.id, f"Вот file_id этой картинки:\n{file_id}")
