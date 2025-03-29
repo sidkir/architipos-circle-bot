@@ -21,3 +21,8 @@ def send_card(message):
     bot.send_message(message.chat.id, f"Твоя карта: {card['name']}\n\n{card['description']}")
 
 bot.polling()
+
+@bot.message_handler(content_types=['photo'])
+def get_file_id(message):
+    file_id = message.photo[-1].file_id
+    bot.send_message(message.chat.id, f"Вот file_id этой картинки:\n{file_id}")
