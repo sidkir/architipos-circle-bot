@@ -57,3 +57,43 @@ if __name__ == "__main__":
 def test(message):
     bot.send_photo(message.chat.id, "AgACAgIAAyEFAASW95Q3AAMCZ-grWGJPNQABtpBnOV1AfZUImVIMAAKo8zEbA-NASwmJMG6lHi6QAQADAgADeQADNgQ", caption="Тестовое изображение")
 
+import json
+
+# Временное хранилище для первой картинки
+temp_photos = {}
+
+@bot.message_handler(content_types=['photo'])
+def handle_photo(message):
+    chat_id = message.chat.id
+    file_id = message.photo[-1].file_id
+
+    if chat_id in temp_photos:
+        # Вторая картинка — создаём пару
+        pair = {
+            "file_ids": [
+                temp_photos[chat_id],
+                file_id
+            ]
+        }
+
+        # Загружаем старые карты
+        try:
+            with open("cards.json", "r", encoding="utf-8") as f:
+                cards = json.load(f)
+        except:
+            cards = []
+
+        # Добавляем новую пару
+        cards.append(pair)
+
+        # Сохраняем обратно
+        with open("cards.json", "w", encoding="utf-8") as f:
+            json.dump(cards, f, ensure_ascii=False, indent=2)
+
+        bot.send_message(chat_id, "✅ Пара сохранена!")
+        temp_photos.pop(chat_id)
+
+    else:
+        # Первая картинка — ждём вторую
+        temp_photos[chat_id] = file_id
+        bot.send_message(chat_id, "📥 Первая картинка получена. Отправь вторую.")
