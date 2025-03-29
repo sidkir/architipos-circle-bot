@@ -1,14 +1,10 @@
 [
   {
-    "name": "Вдохновение",
-    "description": "Ты стоишь на пороге новой идеи. Позволь себе начать без идеальности."
-  },
-  {
-    "name": "Сомнение",
-    "description": "Сомнения — это точка роста. Спроси себя, чего ты боишься на самом деле."
-  },
-  {
-    "name": "Поддержка",
-    "description": "В тебе уже есть всё необходимое. И ты не один."
+    "name": "Глубинная карта",
+    "description": "Эта карта соединяет внешнее и внутреннее. Вглядись в оба изображения.",
+    "file_ids": [
+      "AgACAgIAAyEFAASW95Q3AAMCZ-grWGJPNQABtpBnOV1AfZUImVIMAAKo8zEbA-NASwmJMG6lHi6QAQADAgADeQADNgQ",
+      "AgACAgIAAyEFAASW95Q3AAMFZ-g6KHK0Qk9Ef_rXxAKocIwLueUAAiL0MRsD40BLvVBlZMW03qkBAAMCAAN5AAM2BA"
+    ]
   }
 ]
