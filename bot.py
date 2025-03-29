@@ -8,19 +8,17 @@ TOKEN = "7852344235:AAHy7AZrf2bJ7Zo0wvRHVi7QgNASgvbUvtI"
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
-# Загружаем карты из файла
+# Загружаем карты
 try:
     with open("cards.json", "r", encoding="utf-8") as f:
         cards = json.load(f)
 except Exception as e:
-    cards = [{"name": "Ошибка загрузки карт", "description": str(e)}]
+    cards = [{"name": "Ошибка", "description": str(e)}]
 
-# Команда /start
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.send_message(message.chat.id, "Привет! Нажми /card, чтобы вытянуть карту 🎴")
+    bot.send_message(message.chat.id, "Привет! Нажми /card 🎴")
 
-# Команда /card
 @bot.message_handler(commands=['card'])
 def send_card(message):
     card = random.choice(cards)
@@ -29,20 +27,17 @@ def send_card(message):
     else:
         bot.send_message(message.chat.id, f"{card['name']}\n\n{card['description']}")
 
-# Получение file_id из пересланных фото
 @bot.message_handler(content_types=['photo'])
 def handle_photo(message):
     file_id = message.photo[-1].file_id
     bot.send_message(message.chat.id, f"file_id: {file_id}")
 
-# Маршрут для Webhook
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
     update = telebot.types.Update.de_json(request.stream.read().decode("utf-8"))
     bot.process_new_updates([update])
     return "OK", 200
 
-# Запуск
 if __name__ == "__main__":
     bot.remove_webhook()
     bot.set_webhook(url=f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/{TOKEN}")
