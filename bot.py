@@ -4,7 +4,7 @@ import json
 import os
 from flask import Flask, request
 
-TOKEN = "7852344235:AAHy7AZrf2bJ7Zo0wvRHVi7QgNASgvbUvtI"  # ВСТАВЬ сюда свой токен
+TOKEN = "7852344235:AAHy7AZrf2bJ7Zo0wvRHVi7QgNASgvbUvtI"
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
@@ -20,7 +20,7 @@ except Exception as e:
 def start(message):
     bot.send_message(message.chat.id, "Привет! Я бот с метафорическими картами 🎴\nНапиши /card, чтобы вытянуть карту.")
 
-# Команда /card
+# Команда /card — случайная карта
 @bot.message_handler(commands=['card'])
 def send_card(message):
     card = random.choice(cards)
@@ -28,72 +28,4 @@ def send_card(message):
     if "file_ids" in card:
         for file_id in card["file_ids"]:
             bot.send_photo(message.chat.id, file_id)
-        bot.send_message(message.chat.id, f"{card['name']}\n\n{card['description']}")
-    elif "file_id" in card:
-        bot.send_photo(message.chat.id, card["file_id"], caption=f"{card['name']}\n\n{card['description']}")
-    else:
-        bot.send_message(message.chat.id, f"{card['name']}\n\n{card['description']}")
-
-# Получение file_id, если переслать фото
-@bot.message_handler(content_types=['photo'])
-def handle_photo(message):
-    file_id = message.photo[-1].file_id
-    bot.send_message(message.chat.id, f"file_id: {file_id}")
-
-# Webhook
-@app.route(f"/{TOKEN}", methods=["POST"])
-def webhook():
-    update = telebot.types.Update.de_json(request.stream.read().decode("utf-8"))
-    bot.process_new_updates([update])
-    return "OK", 200
-
-# Запуск сервера
-if __name__ == "__main__":
-    bot.remove_webhook()
-    bot.set_webhook(url=f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/{TOKEN}")
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
-@bot.message_handler(commands=['test'])
-def test(message):
-    bot.send_photo(message.chat.id, "AgACAgIAAyEFAASW95Q3AAMCZ-grWGJPNQABtpBnOV1AfZUImVIMAAKo8zEbA-NASwmJMG6lHi6QAQADAgADeQADNgQ", caption="Тестовое изображение")
-
-import json
-
-# Временное хранилище для первой картинки
-temp_photos = {}
-
-@bot.message_handler(content_types=['photo'])
-def handle_photo(message):
-    chat_id = message.chat.id
-    file_id = message.photo[-1].file_id
-
-    if chat_id in temp_photos:
-        # Вторая картинка — создаём пару
-        pair = {
-            "file_ids": [
-                temp_photos[chat_id],
-                file_id
-            ]
-        }
-
-        # Загружаем старые карты
-        try:
-            with open("cards.json", "r", encoding="utf-8") as f:
-                cards = json.load(f)
-        except:
-            cards = []
-
-        # Добавляем новую пару
-        cards.append(pair)
-
-        # Сохраняем обратно
-        with open("cards.json", "w", encoding="utf-8") as f:
-            json.dump(cards, f, ensure_ascii=False, indent=2)
-
-        bot.send_message(chat_id, "✅ Пара сохранена!")
-        temp_photos.pop(chat_id)
-
-    else:
-        # Первая картинка — ждём вторую
-        temp_photos[chat_id] = file_id
-        bot.send_message(chat_id, "📥 Первая картинка получена. Отправь вторую.")
+    elif
