@@ -4,7 +4,7 @@ import json
 import os
 from flask import Flask, request
 
-TOKEN = "7852344235:AAHy7AZrf2bJ7Zo0wvRHVi7QgNASgvbUvtI"
+TOKEN = "ТВОЙ_ТОКЕН"
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
