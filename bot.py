@@ -93,7 +93,7 @@ def send_process_card(message):
             bot.send_photo(message.chat.id, file_id)
 
 # Мудрые животные
-@bot.message_handler(func=lambda msg: msg.text == "🐾 Мудрые животные")
+@bot.message_handler(func=lambda msg: msg.text == "🐾 Послания зверей")
 def send_wise_animal_card(message):
     if not wise_animals:
         bot.send_message(message.chat.id, "Колода пуста 🐾")
@@ -171,6 +171,21 @@ def collect_photo(message):
                 bot.send_message(message.chat.id, f"✅ Пара сохранена в {state['filename']}")
             except Exception as e:
                 bot.send_message(message.chat.id, f"⚠️ Ошибка: {e}")
+
+# Показываем картинку по file_id
+@bot.message_handler(commands=['show_file'])
+def show_file_command(message):
+    bot.send_message(message.chat.id, "📎 Вставь file_id, и я покажу изображение.")
+    user_states[message.chat.id] = {"step": "show_file"}
+
+@bot.message_handler(func=lambda msg: user_states.get(msg.chat.id, {}).get("step") == "show_file")
+def handle_show_file(msg):
+    file_id = msg.text.strip()
+    try:
+        bot.send_photo(msg.chat.id, file_id)
+        user_states.pop(msg.chat.id)
+    except Exception as e:
+        bot.send_message(msg.chat.id, f"⚠️ Не получилось показать изображение: {e}")
 
 # Webhook
 @app.route(f"/{TOKEN}", methods=["POST"])
