@@ -24,8 +24,7 @@ wise_cards = load_cards("wise_cards.json")
 menu = ReplyKeyboardMarkup(resize_keyboard=True)
 menu.add(
     KeyboardButton("🧿 Архетипы"),
-    KeyboardButton("🪶 Мудрая подсказка"),
-    KeyboardButton("➕ Добавить карту")
+    KeyboardButton("🪶 Мудрая подсказка")
 )
 
 # Пользователи
@@ -50,12 +49,6 @@ def start(message):
         "Сформулируйте свой запрос и выберите колоду:",
         reply_markup=menu
     )
-
-# Обработка кнопки "Добавить карту"
-@bot.message_handler(func=lambda msg: msg.text == "➕ Добавить карту")
-def handle_add_button(message):
-    user_states[message.chat.id] = {"step": "count"}
-    bot.send_message(message.chat.id, "Сколько изображений будет у каждой карты? Введи 1 или 2.")
 
 # Архетипы
 @bot.message_handler(func=lambda msg: msg.text == "🧿 Архетипы")
@@ -91,6 +84,11 @@ def export_cards(message):
                 bot.send_document(message.chat.id, f, visible_file_name=filename)
 
 # Добавление карты — шаги
+@bot.message_handler(commands=['add'])
+def ask_add_step(message):
+    user_states[message.chat.id] = {"step": "count"}
+    bot.send_message(message.chat.id, "Сколько изображений будет у каждой карты? Введи 1 или 2.")
+
 @bot.message_handler(func=lambda msg: msg.chat.id in user_states)
 def handle_state(msg):
     state = user_states[msg.chat.id]
@@ -119,7 +117,6 @@ def collect_photo(message):
     file_id = message.photo[-1].file_id
     state["photos"].append(file_id)
 
-    # Сохраняем по одному или по паре
     if state["count"] == 1:
         entry = {"file_id": file_id}
         try:
@@ -155,3 +152,5 @@ if __name__ == "__main__":
     bot.remove_webhook()
     bot.set_webhook(url=f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/{TOKEN}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+ 
