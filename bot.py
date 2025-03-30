@@ -21,6 +21,7 @@ cards = load_cards("cards.json")
 wise_cards = load_cards("wise_cards.json")
 process_cards = load_cards("processes.json")
 wise_animals = load_cards("wise_animales.json")
+power_animals = load_cards("power_animals.json")
 
 # Клавиатура
 menu = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -28,7 +29,8 @@ menu.add(
     KeyboardButton("🧿 Архетипы"),
     KeyboardButton("🪶 Мудрая подсказка"),
     KeyboardButton("🌀 Процессы"),
-    KeyboardButton("🐾 Послания зверей")
+    KeyboardButton("🐾 Послания зверей"),
+    KeyboardButton("🐅 Животные силы")
 )
 
 # Пользователи
@@ -53,6 +55,21 @@ def start(message):
         "Сформулируйте свой запрос и выберите колоду:",
         reply_markup=menu
     )
+
+# Показываем картинку по file_id
+@bot.message_handler(commands=['show_file'])
+def show_file_command(message):
+    bot.send_message(message.chat.id, "📎 Вставь file_id, и я покажу изображение.")
+    user_states[message.chat.id] = {"step": "show_file"}
+
+@bot.message_handler(func=lambda msg: user_states.get(msg.chat.id, {}).get("step") == "show_file")
+def handle_show_file(msg):
+    file_id = msg.text.strip()
+    try:
+        bot.send_photo(msg.chat.id, file_id)
+        user_states.pop(msg.chat.id)
+    except Exception as e:
+        bot.send_message(msg.chat.id, f"⚠️ Не получилось показать изображение: {e}")
 
 # Архетипы
 @bot.message_handler(func=lambda msg: msg.text == "🧿 Архетипы")
@@ -105,10 +122,23 @@ def send_wise_animal_card(message):
         for file_id in card["file_ids"]:
             bot.send_photo(message.chat.id, file_id)
 
+# Животные силы
+@bot.message_handler(func=lambda msg: msg.text == "🐅 Животные силы")
+def send_power_animal_card(message):
+    if not power_animals:
+        bot.send_message(message.chat.id, "Колода пуста 🐅")
+        return
+    card = random.choice(power_animals)
+    if "file_id" in card:
+        bot.send_photo(message.chat.id, card["file_id"])
+    elif "file_ids" in card:
+        for file_id in card["file_ids"]:
+            bot.send_photo(message.chat.id, file_id)
+
 # Экспорт
 @bot.message_handler(commands=['export'])
 def export_cards(message):
-    for filename in ["cards.json", "wise_cards.json", "processes.json", "wise_animales.json"]:
+    for filename in ["cards.json", "wise_cards.json", "processes.json", "wise_animales.json", "power_animals.json"]:
         if os.path.exists(filename):
             with open(filename, "rb") as f:
                 bot.send_document(message.chat.id, f, visible_file_name=filename)
@@ -171,21 +201,6 @@ def collect_photo(message):
                 bot.send_message(message.chat.id, f"✅ Пара сохранена в {state['filename']}")
             except Exception as e:
                 bot.send_message(message.chat.id, f"⚠️ Ошибка: {e}")
-
-# Показываем картинку по file_id
-@bot.message_handler(commands=['show_file'])
-def show_file_command(message):
-    bot.send_message(message.chat.id, "📎 Вставь file_id, и я покажу изображение.")
-    user_states[message.chat.id] = {"step": "show_file"}
-
-@bot.message_handler(func=lambda msg: user_states.get(msg.chat.id, {}).get("step") == "show_file")
-def handle_show_file(msg):
-    file_id = msg.text.strip()
-    try:
-        bot.send_photo(msg.chat.id, file_id)
-        user_states.pop(msg.chat.id)
-    except Exception as e:
-        bot.send_message(msg.chat.id, f"⚠️ Не получилось показать изображение: {e}")
 
 # Webhook
 @app.route(f"/{TOKEN}", methods=["POST"])
