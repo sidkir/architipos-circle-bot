@@ -27,7 +27,6 @@ menu.add(
     KeyboardButton("🪶 Мудрая подсказка"),
     KeyboardButton("➕ Добавить карту")
 )
-)
 
 # Пользователи
 users = set()
@@ -152,4 +151,4 @@ def webhook():
 if __name__ == "__main__":
     bot.remove_webhook()
     bot.set_webhook(url=f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/{TOKEN}")
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000))) 
