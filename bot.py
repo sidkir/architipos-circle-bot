@@ -88,7 +88,7 @@ menu.add(
     KeyboardButton("🌀 Процессы"),
     KeyboardButton("🐾 Послания зверей"),
     KeyboardButton("🐅 Животные силы"),
-    KeyboardButton("✨ Необходимая трансформация"),
+    KeyboardButton("✨ Трансформация"),
     KeyboardButton("😨 Страхи"),
     KeyboardButton("🙏 Благословения")
 )
