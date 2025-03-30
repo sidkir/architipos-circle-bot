@@ -78,7 +78,7 @@ menu.add(
     KeyboardButton("🌀 Процессы"),
     KeyboardButton("🐾 Послания зверей"),
     KeyboardButton("🐅 Животные силы"),
-    KeyboardButton("✨ Необходимая трансформация"),
+    KeyboardButton("✨ Трансформация"),
     KeyboardButton("😨 Страхи"),
     KeyboardButton("🙏 Благословения")
 )
@@ -104,6 +104,61 @@ def start(message):
         "Сформулируйте свой запрос и выберите колоду или практику:",
         reply_markup=menu
     )
+
+# Архетипы
+@bot.message_handler(func=lambda msg: msg.text == "🧿 Архетипы")
+def send_archetypes(message):
+    if not cards:
+        bot.send_message(message.chat.id, "Колода пуста")
+        return
+    card = random.choice(cards)
+    if "file_ids" in card:
+        for file_id in card["file_ids"]:
+            bot.send_photo(message.chat.id, file_id)
+    elif "file_id" in card:
+        bot.send_photo(message.chat.id, card["file_id"])
+
+# Мудрая подсказка
+@bot.message_handler(func=lambda msg: msg.text == "🪶 Мудрая подсказка")
+def send_wise(message):
+    if not wise_cards:
+        bot.send_message(message.chat.id, "Колода пуста")
+        return
+    card = random.choice(wise_cards)
+    if "file_id" in card:
+        bot.send_photo(message.chat.id, card["file_id"])
+    else:
+        bot.send_message(message.chat.id, "⚠️ Нет изображения")
+
+# Процессы
+@bot.message_handler(func=lambda msg: msg.text == "🌀 Процессы")
+def send_process(message):
+    if not process_cards:
+        bot.send_message(message.chat.id, "Колода пуста")
+        return
+    card = random.choice(process_cards)
+    if "file_id" in card:
+        bot.send_photo(message.chat.id, card["file_id"])
+
+# Послания зверей
+@bot.message_handler(func=lambda msg: msg.text == "🐾 Послания зверей")
+def send_animals(message):
+    if not wise_animals:
+        bot.send_message(message.chat.id, "Колода пуста")
+        return
+    card = random.choice(wise_animals)
+    if "file_id" in card:
+        bot.send_photo(message.chat.id, card["file_id"])
+
+# Животные силы
+@bot.message_handler(func=lambda msg: msg.text == "🐅 Животные силы")
+def send_power_animals(message):
+    if not power_animals:
+        bot.send_message(message.chat.id, "Колода пуста")
+        return
+    card = random.choice(power_animals)
+    if "file_id" in card:
+        bot.send_photo(message.chat.id, card["file_id"])
 
 # Трансформация
 @bot.message_handler(func=lambda msg: msg.text == "✨ Необходимая трансформация")
@@ -132,4 +187,3 @@ if __name__ == "__main__":
     bot.remove_webhook()
     bot.set_webhook(url=f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/{TOKEN}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
