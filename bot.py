@@ -54,7 +54,8 @@ def start(message):
 # Обработка кнопки "Добавить карту"
 @bot.message_handler(func=lambda msg: msg.text == "➕ Добавить карту")
 def handle_add_button(message):
-    ask_image_count(message)
+    user_states[message.chat.id] = {"step": "count"}
+    bot.send_message(message.chat.id, "Сколько изображений будет у каждой карты? Введи 1 или 2.")
 
 # Архетипы
 @bot.message_handler(func=lambda msg: msg.text == "🧿 Архетипы")
@@ -86,16 +87,10 @@ def send_wise_card(message):
 def export_cards(message):
     for filename in ["cards.json", "wise_cards.json"]:
         if os.path.exists(filename):
-            with open(filename, "r", encoding="utf-8") as f:
+            with open(filename, "rb") as f:
                 bot.send_document(message.chat.id, f, visible_file_name=filename)
 
-# Добавление карты — шаг 1: сколько изображений
-@bot.message_handler(commands=['add'])
-def ask_image_count(message):
-    user_states[message.chat.id] = {"step": "count"}
-    bot.send_message(message.chat.id, "Сколько изображений будет у карты? Введи 1 или 2.")
-
-# Текстовые ответы для шага выбора
+# Добавление карты — шаги
 @bot.message_handler(func=lambda msg: msg.chat.id in user_states)
 def handle_state(msg):
     state = user_states[msg.chat.id]
@@ -106,15 +101,15 @@ def handle_state(msg):
             return
         state["count"] = int(msg.text.strip())
         state["step"] = "filename"
-        bot.send_message(msg.chat.id, "Как назвать файл для сохранения карты? Например: cards.json или wise_cards.json")
+        bot.send_message(msg.chat.id, "Как назвать файл для сохранения карт? Например: cards.json или wise_cards.json")
 
     elif state["step"] == "filename":
         state["filename"] = msg.text.strip()
         state["step"] = "waiting_photos"
         state["photos"] = []
-        bot.send_message(msg.chat.id, f"Отправь {state['count']} изображение(й). Ожидаю...")
+        bot.send_message(msg.chat.id, f"Отправляй изображения. Ввод считается завершённым при команде /export")
 
-# Фото — добавление по 1 или 2 изображениям
+# Сбор изображений
 @bot.message_handler(content_types=['photo'])
 def collect_photo(message):
     state = user_states.get(message.chat.id)
@@ -124,9 +119,9 @@ def collect_photo(message):
     file_id = message.photo[-1].file_id
     state["photos"].append(file_id)
 
-    if len(state["photos"]) == state["count"]:
-        entry = {"file_ids": state["photos"]} if state["count"] == 2 else {"file_id": state["photos"][0]}
-
+    # Сохраняем по одному или по паре
+    if state["count"] == 1:
+        entry = {"file_id": file_id}
         try:
             data = load_cards(state["filename"])
             data.append(entry)
@@ -135,10 +130,18 @@ def collect_photo(message):
             bot.send_message(message.chat.id, f"✅ Карта сохранена в {state['filename']}")
         except Exception as e:
             bot.send_message(message.chat.id, f"⚠️ Ошибка: {e}")
-
-        user_states.pop(message.chat.id)
     else:
-        bot.send_message(message.chat.id, f"✅ Получено {len(state['photos'])}. Жду ещё {state['count'] - len(state['photos'])}.")
+        photos = state["photos"]
+        if len(photos) % 2 == 0:
+            pair = {"file_ids": [photos[-2], photos[-1]]}
+            try:
+                data = load_cards(state["filename"])
+                data.append(pair)
+                with open(state["filename"], "w", encoding="utf-8") as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+                bot.send_message(message.chat.id, f"✅ Пара сохранена в {state['filename']}")
+            except Exception as e:
+                bot.send_message(message.chat.id, f"⚠️ Ошибка: {e}")
 
 # Webhook
 @app.route(f"/{TOKEN}", methods=["POST"])
@@ -151,4 +154,4 @@ def webhook():
 if __name__ == "__main__":
     bot.remove_webhook()
     bot.set_webhook(url=f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/{TOKEN}")
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000))) 
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
