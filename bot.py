@@ -20,13 +20,15 @@ def load_cards(filename):
 cards = load_cards("cards.json")
 wise_cards = load_cards("wise_cards.json")
 process_cards = load_cards("processes.json")
+wise_animals = load_cards("wise_animales.json")
 
 # Клавиатура
 menu = ReplyKeyboardMarkup(resize_keyboard=True)
 menu.add(
     KeyboardButton("🧿 Архетипы"),
     KeyboardButton("🪶 Мудрая подсказка"),
-    KeyboardButton("🌀 Процессы")
+    KeyboardButton("🌀 Процессы"),
+    KeyboardButton("🐾 Послания зверей")
 )
 
 # Пользователи
@@ -90,10 +92,23 @@ def send_process_card(message):
         for file_id in card["file_ids"]:
             bot.send_photo(message.chat.id, file_id)
 
+# Мудрые животные
+@bot.message_handler(func=lambda msg: msg.text == "🐾 Мудрые животные")
+def send_wise_animal_card(message):
+    if not wise_animals:
+        bot.send_message(message.chat.id, "Колода пуста 🐾")
+        return
+    card = random.choice(wise_animals)
+    if "file_id" in card:
+        bot.send_photo(message.chat.id, card["file_id"])
+    elif "file_ids" in card:
+        for file_id in card["file_ids"]:
+            bot.send_photo(message.chat.id, file_id)
+
 # Экспорт
 @bot.message_handler(commands=['export'])
 def export_cards(message):
-    for filename in ["cards.json", "wise_cards.json", "processes.json"]:
+    for filename in ["cards.json", "wise_cards.json", "processes.json", "wise_animales.json"]:
         if os.path.exists(filename):
             with open(filename, "rb") as f:
                 bot.send_document(message.chat.id, f, visible_file_name=filename)
