@@ -5,39 +5,40 @@ import os
 from flask import Flask, request
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
-# Токен от BotFather
 TOKEN = "7852344235:AAHy7AZrf2bJ7Zo0wvRHVi7QgNASgvbUvtI"
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
-# Загружаем карты из файла (Архетипы)
-try:
-    with open("cards.json", "r", encoding="utf-8") as f:
-        cards = json.load(f)
-except Exception as e:
-    cards = [{"name": "Ошибка", "description": str(e)}]
+# Загружаем колоды
+def load_cards(filename):
+    try:
+        with open(filename, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        return []
 
-# Загружаем притчи (Мудрые подсказки)
-try:
-    with open("wise_cards.json", "r", encoding="utf-8") as f:
-        wise_cards = json.load(f)
-except:
-    wise_cards = []
+cards = load_cards("cards.json")
+wise_cards = load_cards("wise_cards.json")
 
-# Загружаем пользователей, если есть
+# Клавиатура
+menu = ReplyKeyboardMarkup(resize_keyboard=True)
+menu.add(
+    KeyboardButton("🧿 Архетипы"),
+    KeyboardButton("🪶 Мудрая подсказка"),
+    KeyboardButton("➕ Добавить карту")
+)
+)
+
+# Пользователи
 users = set()
 if os.path.exists("users.txt"):
     with open("users.txt", "r") as f:
         users = set(line.strip() for line in f)
 
-# Клавиатура с двумя кнопками
-menu = ReplyKeyboardMarkup(resize_keyboard=True)
-menu.add(
-    KeyboardButton("🧿 Архетипы"),
-    KeyboardButton("🪶 Мудрая подсказка")
-)
+# Временные состояния пользователей для добавления карт
+user_states = {}
 
-# Команда /start
+# /start
 @bot.message_handler(commands=['start'])
 def start(message):
     users.add(str(message.chat.id))
@@ -47,15 +48,20 @@ def start(message):
 
     bot.send_message(
         message.chat.id,
-        "Сформулируйте свой запрос и выберите:",
+        "Сформулируйте свой запрос и выберите колоду:",
         reply_markup=menu
     )
 
-# Кнопка "Архетипы"
+# Обработка кнопки "Добавить карту"
+@bot.message_handler(func=lambda msg: msg.text == "➕ Добавить карту")
+def handle_add_button(message):
+    ask_image_count(message)
+
+# Архетипы
 @bot.message_handler(func=lambda msg: msg.text == "🧿 Архетипы")
 def send_archetype_card(message):
     if not cards:
-        bot.send_message(message.chat.id, "Колода пока пуста 😕")
+        bot.send_message(message.chat.id, "Колода пуста 😕")
         return
     card = random.choice(cards)
     if "file_ids" in card:
@@ -63,71 +69,77 @@ def send_archetype_card(message):
             bot.send_photo(message.chat.id, file_id)
     elif "file_id" in card:
         bot.send_photo(message.chat.id, card["file_id"])
-    else:
-        bot.send_message(message.chat.id, "Только текстовая карта")
 
-# Кнопка "Мудрая подсказка"
+# Мудрая подсказка
 @bot.message_handler(func=lambda msg: msg.text == "🪶 Мудрая подсказка")
 def send_wise_card(message):
     if not wise_cards:
-        bot.send_message(message.chat.id, "Пока нет мудрых подсказок 🧐")
+        bot.send_message(message.chat.id, "Колода пуста 😕")
         return
     card = random.choice(wise_cards)
-    bot.send_message(message.chat.id, card["text"])
+    if "file_id" in card:
+        bot.send_photo(message.chat.id, card["file_id"])
+    else:
+        bot.send_message(message.chat.id, "⚠️ Карта без изображения")
 
-# Команда /card (альтернатива кнопке)
-@bot.message_handler(commands=['card'])
-def send_card(message):
-    send_archetype_card(message)
-
-# Команда /count_users
-@bot.message_handler(commands=['count_users'])
-def count_users(message):
-    bot.send_message(message.chat.id, f"👥 Уникальных пользователей: {len(users)}")
-
-# Экспорт cards.json
+# Экспорт
 @bot.message_handler(commands=['export'])
 def export_cards(message):
-    try:
-        with open("cards.json", "r", encoding="utf-8") as f:
-            bot.send_document(message.chat.id, f, visible_file_name="cards.json")
-    except Exception as e:
-        bot.send_message(message.chat.id, f"⚠️ Не удалось экспортировать файл: {str(e)}")
+    for filename in ["cards.json", "wise_cards.json"]:
+        if os.path.exists(filename):
+            with open(filename, "r", encoding="utf-8") as f:
+                bot.send_document(message.chat.id, f, visible_file_name=filename)
 
-# Временное хранилище для первой картинки
-temp_photos = {}
+# Добавление карты — шаг 1: сколько изображений
+@bot.message_handler(commands=['add'])
+def ask_image_count(message):
+    user_states[message.chat.id] = {"step": "count"}
+    bot.send_message(message.chat.id, "Сколько изображений будет у карты? Введи 1 или 2.")
 
-# Обработка фото — сбор пары
-@bot.message_handler(content_types=['photo'])
-def handle_photo(message):
-    chat_id = message.chat.id
-    file_id = message.photo[-1].file_id
+# Текстовые ответы для шага выбора
+@bot.message_handler(func=lambda msg: msg.chat.id in user_states)
+def handle_state(msg):
+    state = user_states[msg.chat.id]
 
-    bot.send_message(chat_id, f"📎 file_id: {file_id}")
-
-    if chat_id in temp_photos:
-        pair = {"file_ids": [temp_photos[chat_id], file_id]}
-
-        try:
-            with open("cards.json", "r", encoding="utf-8") as f:
-                cards_data = json.load(f)
-        except:
-            cards_data = []
-
-        cards_data.append(pair)
-
-        try:
-            with open("cards.json", "w", encoding="utf-8") as f:
-                json.dump(cards_data, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            bot.send_message(chat_id, f"⚠️ Ошибка сохранения: {e}")
+    if state["step"] == "count":
+        if msg.text.strip() not in ["1", "2"]:
+            bot.send_message(msg.chat.id, "Пожалуйста, введи 1 или 2.")
             return
+        state["count"] = int(msg.text.strip())
+        state["step"] = "filename"
+        bot.send_message(msg.chat.id, "Как назвать файл для сохранения карты? Например: cards.json или wise_cards.json")
 
-        bot.send_message(chat_id, "✅ Пара сохранена!")
-        temp_photos.pop(chat_id)
+    elif state["step"] == "filename":
+        state["filename"] = msg.text.strip()
+        state["step"] = "waiting_photos"
+        state["photos"] = []
+        bot.send_message(msg.chat.id, f"Отправь {state['count']} изображение(й). Ожидаю...")
+
+# Фото — добавление по 1 или 2 изображениям
+@bot.message_handler(content_types=['photo'])
+def collect_photo(message):
+    state = user_states.get(message.chat.id)
+    if not state or state.get("step") != "waiting_photos":
+        return
+
+    file_id = message.photo[-1].file_id
+    state["photos"].append(file_id)
+
+    if len(state["photos"]) == state["count"]:
+        entry = {"file_ids": state["photos"]} if state["count"] == 2 else {"file_id": state["photos"][0]}
+
+        try:
+            data = load_cards(state["filename"])
+            data.append(entry)
+            with open(state["filename"], "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            bot.send_message(message.chat.id, f"✅ Карта сохранена в {state['filename']}")
+        except Exception as e:
+            bot.send_message(message.chat.id, f"⚠️ Ошибка: {e}")
+
+        user_states.pop(message.chat.id)
     else:
-        temp_photos[chat_id] = file_id
-        bot.send_message(chat_id, "📥 Первая картинка получена. Отправь вторую.")
+        bot.send_message(message.chat.id, f"✅ Получено {len(state['photos'])}. Жду ещё {state['count'] - len(state['photos'])}.")
 
 # Webhook
 @app.route(f"/{TOKEN}", methods=["POST"])
@@ -136,9 +148,8 @@ def webhook():
     bot.process_new_updates([update])
     return "OK", 200
 
-# Запуск сервера
+# Запуск
 if __name__ == "__main__":
     bot.remove_webhook()
     bot.set_webhook(url=f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/{TOKEN}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
