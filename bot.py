@@ -22,6 +22,8 @@ wise_cards = load_cards("wise_cards.json")
 process_cards = load_cards("processes.json")
 wise_animals = load_cards("wise_animales.json")
 power_animals = load_cards("power_animals.json")
+focus_cards = load_cards("focus_cards.json")
+fairytale_heroes = load_cards("fairytale_heroes.json")
 
 # Клавиатура
 menu = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -30,7 +32,9 @@ menu.add(
     KeyboardButton("🪶 Мудрая подсказка"),
     KeyboardButton("🌀 Процессы"),
     KeyboardButton("🐾 Послания зверей"),
-    KeyboardButton("🐅 Животные силы")
+    KeyboardButton("🐅 Животные силы"),
+    KeyboardButton("🎯 Фокус внимания"),
+    KeyboardButton("🧚‍♀️ Сказочные герои")
 )
 
 # Пользователи
@@ -135,10 +139,36 @@ def send_power_animal_card(message):
         for file_id in card["file_ids"]:
             bot.send_photo(message.chat.id, file_id)
 
+# Фокус внимания
+@bot.message_handler(func=lambda msg: msg.text == "🎯 Фокус внимания")
+def send_focus_card(message):
+    if not focus_cards:
+        bot.send_message(message.chat.id, "Колода пуста 🎯")
+        return
+    card = random.choice(focus_cards)
+    if "file_id" in card:
+        bot.send_photo(message.chat.id, card["file_id"])
+    elif "file_ids" in card:
+        for file_id in card["file_ids"]:
+            bot.send_photo(message.chat.id, file_id)
+
+# Сказочные герои
+@bot.message_handler(func=lambda msg: msg.text == "🧚‍♀️ Сказочные герои")
+def send_fairytale_card(message):
+    if not fairytale_heroes:
+        bot.send_message(message.chat.id, "Колода пуста 🧚‍♀️")
+        return
+    card = random.choice(fairytale_heroes)
+    if "file_id" in card:
+        bot.send_photo(message.chat.id, card["file_id"])
+    elif "file_ids" in card:
+        for file_id in card["file_ids"]:
+            bot.send_photo(message.chat.id, file_id)
+
 # Экспорт
 @bot.message_handler(commands=['export'])
 def export_cards(message):
-    for filename in ["cards.json", "wise_cards.json", "processes.json", "wise_animales.json", "power_animals.json"]:
+    for filename in ["cards.json", "wise_cards.json", "processes.json", "wise_animales.json", "power_animals.json", "focus_cards.json", "fairytale_heroes.json"]:
         if os.path.exists(filename):
             with open(filename, "rb") as f:
                 bot.send_document(message.chat.id, f, visible_file_name=filename)
@@ -214,4 +244,5 @@ if __name__ == "__main__":
     bot.remove_webhook()
     bot.set_webhook(url=f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/{TOKEN}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
