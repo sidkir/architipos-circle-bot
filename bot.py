@@ -19,12 +19,14 @@ def load_cards(filename):
 
 cards = load_cards("cards.json")
 wise_cards = load_cards("wise_cards.json")
+process_cards = load_cards("processes.json")
 
 # Клавиатура
 menu = ReplyKeyboardMarkup(resize_keyboard=True)
 menu.add(
     KeyboardButton("🧿 Архетипы"),
-    KeyboardButton("🪶 Мудрая подсказка")
+    KeyboardButton("🪶 Мудрая подсказка"),
+    KeyboardButton("🌀 Процессы")
 )
 
 # Пользователи
@@ -75,20 +77,34 @@ def send_wise_card(message):
     else:
         bot.send_message(message.chat.id, "⚠️ Карта без изображения")
 
+# Процессы
+@bot.message_handler(func=lambda msg: msg.text == "🌀 Процессы")
+def send_process_card(message):
+    if not process_cards:
+        bot.send_message(message.chat.id, "Колода пуста 😕")
+        return
+    card = random.choice(process_cards)
+    if "file_id" in card:
+        bot.send_photo(message.chat.id, card["file_id"])
+    elif "file_ids" in card:
+        for file_id in card["file_ids"]:
+            bot.send_photo(message.chat.id, file_id)
+
 # Экспорт
 @bot.message_handler(commands=['export'])
 def export_cards(message):
-    for filename in ["cards.json", "wise_cards.json"]:
+    for filename in ["cards.json", "wise_cards.json", "processes.json"]:
         if os.path.exists(filename):
             with open(filename, "rb") as f:
                 bot.send_document(message.chat.id, f, visible_file_name=filename)
 
-# Добавление карты — шаги
+# Команда /add
 @bot.message_handler(commands=['add'])
-def ask_add_step(message):
+def start_add(message):
     user_states[message.chat.id] = {"step": "count"}
     bot.send_message(message.chat.id, "Сколько изображений будет у каждой карты? Введи 1 или 2.")
 
+# Добавление карты — шаги
 @bot.message_handler(func=lambda msg: msg.chat.id in user_states)
 def handle_state(msg):
     state = user_states[msg.chat.id]
@@ -117,6 +133,7 @@ def collect_photo(message):
     file_id = message.photo[-1].file_id
     state["photos"].append(file_id)
 
+    # Сохраняем по одному или по паре
     if state["count"] == 1:
         entry = {"file_id": file_id}
         try:
@@ -153,4 +170,3 @@ if __name__ == "__main__":
     bot.set_webhook(url=f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/{TOKEN}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
 
- 
