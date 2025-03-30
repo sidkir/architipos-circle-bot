@@ -78,9 +78,10 @@ menu.add(
     KeyboardButton("🌀 Процессы"),
     KeyboardButton("🐾 Послания зверей"),
     KeyboardButton("🐅 Животные силы"),
-    KeyboardButton("✨ Трансформация"),
+    KeyboardButton("✨ Необходимая трансформация"),
     KeyboardButton("😨 Страхи"),
-    KeyboardButton("🙏 Благословения")
+    KeyboardButton("🙏 Благословения"),
+    KeyboardButton("🧭 Техники")
 )
 
 # Пользователи
@@ -175,6 +176,19 @@ def send_fear(message):
 def send_blessing(message):
     bot.send_message(message.chat.id, f"💫 Благословение: {random.choice(blessings)}")
 
+# Техники
+@bot.message_handler(func=lambda msg: msg.text == "🧭 Техники")
+def show_technique(message):
+    bot.send_message(
+        message.chat.id,
+        "🌞 Техника: Послание на день\n\n"
+        "Доверься случаю. Пусть случайная карта скажет тебе то, что ты должен сегодня услышать.\n"
+        "Настройся и спроси себя:\n"
+        "\"Какое послание хочет прийти ко мне сегодня?\"\n\n"
+        "📚 Рекомендованные колоды:\n"
+        "🪶 Мудрая подсказка\n🌀 Процессы\n🐾 Послания зверей"
+    )
+
 # Webhook
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
@@ -187,3 +201,4 @@ if __name__ == "__main__":
     bot.remove_webhook()
     bot.set_webhook(url=f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/{TOKEN}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
