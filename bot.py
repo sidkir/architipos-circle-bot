@@ -38,7 +38,7 @@ main_menu.add(
 deck_menu = ReplyKeyboardMarkup(resize_keyboard=True)
 deck_menu.add(
     KeyboardButton("🧿 Архетипы"),
-    KeyboardButton("🪶 Мудрая подсказка"),
+    KeyboardButton("🪶 Мудрость"),
     KeyboardButton("🌀 Процессы"),
     KeyboardButton("🐾 Послания зверей"),
     KeyboardButton("🐅 Животные силы"),
@@ -105,39 +105,6 @@ def daily_message(message):
 def go_back(message):
     bot.send_message(message.chat.id, "Возвращаюсь в главное меню:", reply_markup=main_menu)
 
-# Обработчики техник
-@bot.message_handler(func=lambda m: m.text == "🎯 Моя цель")
-def technique_goal(message):
-    bot.send_message(message.chat.id, "🎯 Техника: Моя цель\n\nСконцентрируйся на вопросе: 'Какова моя истинная цель прямо сейчас?'\n\n📚 Рекомендованные колоды:\n- 🧿 Архетипы\n- 🌀 Процессы")
-
-@bot.message_handler(func=lambda m: m.text == "❤️ Отношения")
-def technique_relationships(message):
-    bot.send_message(message.chat.id, "❤️ Техника: Отношения\n\nЗадай вопрос: 'Что я не вижу в наших отношениях? Какова моя роль?'\n\n📚 Рекомендованные колоды:\n- 🧿 Архетипы\n- 🪶 Мудрая подсказка")
-
-@bot.message_handler(func=lambda m: m.text == "🧬 Симптом")
-def technique_symptom(message):
-    bot.send_message(message.chat.id, "🧬 Техника: Симптом\n\nЗадай себе вопрос: 'О чём говорит мой симптом? Какое послание он несёт?'\n\n📚 Рекомендованные колоды:\n- 🪶 Мудрая подсказка\n- 🌀 Процессы")
-
-@bot.message_handler(func=lambda m: m.text == "🪨 Корень проблемы")
-def technique_root(message):
-    bot.send_message(message.chat.id, "🪨 Техника: Корень проблемы\n\nСпроси: 'В чём скрытая причина моей ситуации?'\n\n📚 Рекомендованные колоды:\n- 🧿 Архетипы\n- 🌀 Процессы")
-
-@bot.message_handler(func=lambda m: m.text == "🌿 Ресурс")
-def technique_resource(message):
-    bot.send_message(message.chat.id, "🌿 Техника: Ресурс\n\nВопрос: 'Что поможет мне сейчас? Где мой ресурс?'\n\n📚 Рекомендованные колоды:\n- 🐾 Послания зверей\n- 🧚 Сказочные герои")
-
-@bot.message_handler(func=lambda m: m.text == "🔀 Выбор")
-def technique_choice(message):
-    bot.send_message(message.chat.id, "🔀 Техника: Выбор\n\nОпредели варианты. Задай вопрос: 'Какой путь мне выбрать?'\n\n📚 Рекомендованные колоды:\n- 🌀 Процессы\n- 🎯 Фокус внимания")
-
-@bot.message_handler(func=lambda m: m.text == "✅ Да или Нет")
-def technique_yesno(message):
-    bot.send_message(message.chat.id, "✅ Техника: Да или Нет\n\nСформулируй конкретный вопрос. Вытащи карту и почувствуй, к чему она склоняет.\n\n📚 Рекомендованные колоды:\n- 🧿 Архетипы\n- 🪶 Мудрая подсказка")
-
-@bot.message_handler(func=lambda m: m.text == "🚶 Мои шаги")
-def technique_steps(message):
-    bot.send_message(message.chat.id, "🚶 Техника: Мои шаги\n\nСпроси: 'Какой следующий шаг мне нужно сделать?'\n\n📚 Рекомендованные колоды:\n- 🌀 Процессы\n- 🎯 Фокус внимания")
-
 # Колода: Сказочные герои
 @bot.message_handler(func=lambda m: m.text == "🧚 Сказочные герои")
 def handle_fairy(message):
@@ -161,28 +128,19 @@ def handle_focus(message):
         bot.send_photo(message.chat.id, card["file_id"])
     else:
         bot.send_message(message.chat.id, card.get("text", "Нет изображения или текста"))
-# Колода: Архетипы
-@bot.message_handler(func=lambda m: m.text == "🧿 Архетипы")
-def handle_archetypes(message):
-    if not cards:
-        bot.send_message(message.chat.id, "Колода пуста 🧿")
-        return
-    card = random.choice(cards)
-    if "file_ids" in card:
-        for file_id in card["file_ids"]:
-            bot.send_photo(message.chat.id, file_id)
-    elif "file_id" in card:
-        bot.send_photo(message.chat.id, card["file_id"])
 
-# Колода: Мудрая подсказка
-@bot.message_handler(func=lambda m: m.text == "🪶 Мудрая подсказка")
-def handle_wise(message):
+# Колода: Мудрость (бывшая Мудрая подсказка)
+@bot.message_handler(func=lambda m: m.text == "🪶 Мудрость")
+def handle_wisdom(message):
     if not wise_cards:
         bot.send_message(message.chat.id, "Колода пуста 🪶")
         return
     card = random.choice(wise_cards)
     if "text" in card:
         bot.send_message(message.chat.id, card["text"])
+    else:
+        bot.send_message(message.chat.id, "Карта без текста")
+
 
 # Колода: Процессы
 @bot.message_handler(func=lambda m: m.text == "🌀 Процессы")
