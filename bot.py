@@ -23,8 +23,8 @@ wise_cards = load_cards("wise_cards.json")
 process_cards = load_cards("processes.json")
 wise_animals = load_cards("wise_animales.json")
 power_animals = load_cards("power_animals.json")
-fokus_cards = load_cards("focus.json")
-fairy_cards = load_cards("fairy.json")
+fokus_cards = load_cards("focus_cards.json")
+fairy_cards = load_cards("fairytale_heroes.json")
 
 # Главное меню
 main_menu = ReplyKeyboardMarkup(resize_keyboard=True)
