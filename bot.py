@@ -25,13 +25,17 @@ wise_animals = load_cards("wise_animales.json")
 power_animals = load_cards("power_animals.json")
 fokus_cards = load_cards("focus_cards.json")
 fairy_cards = load_cards("fairytale_heroes.json")
+transform_cards = load_cards("transformation.json")
+fear_cards = load_cards("fears.json")
+blessing_cards = load_cards("blessings.json")
 
 # Главное меню
 main_menu = ReplyKeyboardMarkup(resize_keyboard=True)
 main_menu.add(
     KeyboardButton("🔮 Послание дня"),
     KeyboardButton("📚 Колоды"),
-    KeyboardButton("🧭 Техники")
+    KeyboardButton("🧭 Техники"),
+    KeyboardButton("✨ Дополнения")
 )
 
 # Подменю колод
@@ -61,6 +65,15 @@ technique_menu.add(
     KeyboardButton("⬅️ Назад")
 )
 
+# Подменю дополнений
+extras_menu = ReplyKeyboardMarkup(resize_keyboard=True)
+extras_menu.add(
+    KeyboardButton("🔥 Трансформация"),
+    KeyboardButton("😱 Страхи"),
+    KeyboardButton("💫 Благословения"),
+    KeyboardButton("⬅️ Назад")
+)
+
 # /start
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -85,6 +98,14 @@ def show_techniques(message):
         message.chat.id,
         "Выбери технику для работы с картами:",
         reply_markup=technique_menu
+    )
+
+@bot.message_handler(func=lambda m: m.text == "✨ Дополнения")
+def show_extras(message):
+    bot.send_message(
+        message.chat.id,
+        "Выбери дополнение:",
+        reply_markup=extras_menu
     )
 
 @bot.message_handler(func=lambda m: m.text == "🔮 Послание дня")
@@ -129,7 +150,7 @@ def handle_focus(message):
     else:
         bot.send_message(message.chat.id, card.get("text", "Нет изображения или текста"))
 
-# Колода: Мудрость (бывшая Мудрая подсказка)
+# Колода: Мудрость
 @bot.message_handler(func=lambda m: m.text == "🪶 Мудрость")
 def handle_wisdom(message):
     if not wise_cards:
@@ -141,6 +162,33 @@ def handle_wisdom(message):
     else:
         bot.send_message(message.chat.id, "Карта без текста")
 
+# Дополнения: трансформация, страхи, благословения
+@bot.message_handler(func=lambda m: m.text == "🔥 Необходимая трансформация")
+def handle_transform(message):
+    if not transform_cards:
+        bot.send_message(message.chat.id, "Список трансформаций пуст 🔥")
+        return
+    text = random.choice(transform_cards).get("text", "")
+    bot.send_message(message.chat.id, f"🔥 Необходимая трансформация:
+{text}")
+
+@bot.message_handler(func=lambda m: m.text == "😱 Страхи")
+def handle_fears(message):
+    if not fear_cards:
+        bot.send_message(message.chat.id, "Список страхов пуст 😱")
+        return
+    text = random.choice(fear_cards).get("text", "")
+    bot.send_message(message.chat.id, f"😱 Твой страх:
+{text}")
+
+@bot.message_handler(func=lambda m: m.text == "💫 Благословения")
+def handle_blessings(message):
+    if not blessing_cards:
+        bot.send_message(message.chat.id, "Список благословений пуст 💫")
+        return
+    text = random.choice(blessing_cards).get("text", "")
+    bot.send_message(message.chat.id, f"💫 Благословение:
+{text}")
 
 # Колода: Процессы
 @bot.message_handler(func=lambda m: m.text == "🌀 Процессы")
