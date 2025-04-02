@@ -173,7 +173,7 @@ def call_gpt_for_image(image_bytes):
         "Content-Type": "application/json"
     }
     data = {
-        "model": "gpt-4-vision-preview",
+        "model": "gpt-4o",
         "messages": [
             {"role": "system", "content": "Ты психолог, коуч и наставник, который интерпретирует изображения карт глубоко, метафорично и символически. Не давай прямых указаний, помогай клиенту осознать, что ему важно. Можешь задавать наводящие вопросы, если нужно прояснить смысл."},
             {
@@ -223,4 +223,3 @@ if __name__ == "__main__":
     bot.remove_webhook()
     bot.set_webhook(url=f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/{TOKEN}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
