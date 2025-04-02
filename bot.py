@@ -9,8 +9,7 @@ TOKEN = "7852344235:AAHy7AZrf2bJ7Zo0wvRHVi7QgNASgvbUvtI"
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
-# Загружаем колоды
-
+# Загрузка колоды при обращении (ленивая загрузка)
 def load_cards(filename):
     try:
         with open(filename, "r", encoding="utf-8") as f:
@@ -18,24 +17,12 @@ def load_cards(filename):
     except:
         return []
 
-cards = load_cards("cards.json")
-wise_cards = load_cards("wise_cards.json")
-process_cards = load_cards("processes.json")
-wise_animals = load_cards("wise_animales.json")
-power_animals = load_cards("power_animals.json")
-fokus_cards = load_cards("focus_cards.json")
-fairy_cards = load_cards("fairytale_heroes.json")
-transform_cards = load_cards("transformation.json")
-fear_cards = load_cards("fears.json")
-blessing_cards = load_cards("blessings.json")
-
 # Главное меню
 main_menu = ReplyKeyboardMarkup(resize_keyboard=True)
 main_menu.add(
     KeyboardButton("🔮 Послание дня"),
     KeyboardButton("📚 Колоды"),
-    KeyboardButton("🧭 Техники"),
-    KeyboardButton("✨ Дополнения")
+    KeyboardButton("🧱 Причины")
 )
 
 # Подменю колод
@@ -51,26 +38,12 @@ deck_menu.add(
     KeyboardButton("⬅️ Назад")
 )
 
-# Подменю техник
-technique_menu = ReplyKeyboardMarkup(resize_keyboard=True)
-technique_menu.add(
-    KeyboardButton("🎯 Моя цель"),
-    KeyboardButton("❤️ Отношения"),
-    KeyboardButton("🧬 Симптом"),
-    KeyboardButton("🪨 Корень проблемы"),
-    KeyboardButton("🌿 Ресурс"),
-    KeyboardButton("🔀 Выбор"),
-    KeyboardButton("✅ Да или Нет"),
-    KeyboardButton("🚶 Мои шаги"),
-    KeyboardButton("⬅️ Назад")
-)
-
-# Подменю дополнений
-extras_menu = ReplyKeyboardMarkup(resize_keyboard=True)
-extras_menu.add(
+# Подменю причин
+reason_menu = ReplyKeyboardMarkup(resize_keyboard=True)
+reason_menu.add(
     KeyboardButton("🔥 Трансформация"),
     KeyboardButton("😱 Страхи"),
-    KeyboardButton("💫 Благословения"),
+    KeyboardButton("💫 Разрешения"),
     KeyboardButton("⬅️ Назад")
 )
 
@@ -92,25 +65,24 @@ def show_decks(message):
         reply_markup=deck_menu
     )
 
-@bot.message_handler(func=lambda m: m.text == "🧭 Техники")
-def show_techniques(message):
+@bot.message_handler(func=lambda m: m.text == "🧱 Причины")
+def show_reasons(message):
     bot.send_message(
         message.chat.id,
-        "Выбери технику для работы с картами:",
-        reply_markup=technique_menu
-    )
-
-@bot.message_handler(func=lambda m: m.text == "✨ Дополнения")
-def show_extras(message):
-    bot.send_message(
-        message.chat.id,
-        "Выбери дополнение:",
-        reply_markup=extras_menu
+        "Выбери, с чем хочешь поработать:",
+        reply_markup=reason_menu
     )
 
 @bot.message_handler(func=lambda m: m.text == "🔮 Послание дня")
 def daily_message(message):
-    all_cards = cards + wise_cards + process_cards + wise_animals + power_animals + fokus_cards + fairy_cards
+    all_files = [
+        "cards.json", "wise_cards.json", "processes.json",
+        "wise_animales.json", "power_animals.json",
+        "focus_cards.json", "fairytale_heroes.json"
+    ]
+    all_cards = []
+    for file in all_files:
+        all_cards.extend(load_cards(file))
     card = random.choice(all_cards)
     if "file_ids" in card:
         for file_id in card["file_ids"]:
@@ -121,113 +93,119 @@ def daily_message(message):
         bot.send_message(message.chat.id, card["text"])
     bot.send_message(message.chat.id, "Эта карта показывает то, что здесь и сейчас тебе важно увидеть, понять. Это послание тебе. Какое оно? Что говорит тебе эта карта?")
 
-# Назад в главное меню
+# Назад
 @bot.message_handler(func=lambda m: m.text == "⬅️ Назад")
 def go_back(message):
     bot.send_message(message.chat.id, "Возвращаюсь в главное меню:", reply_markup=main_menu)
 
-# Колода: Сказочные герои
-@bot.message_handler(func=lambda m: m.text == "🧚 Сказочные герои")
-def handle_fairy(message):
-    if not fairy_cards:
-        bot.send_message(message.chat.id, "Колода пуста 🧚")
+# Обработчики колод
+@bot.message_handler(func=lambda m: m.text == "🧿 Архетипы")
+def handle_archetypes(message):
+    cards = load_cards("cards.json")
+    if not cards:
+        bot.send_message(message.chat.id, "Колода пуста 🧿")
         return
-    card = random.choice(fairy_cards)
-    if "file_id" in card:
+    card = random.choice(cards)
+    if "file_ids" in card:
+        for file_id in card["file_ids"]:
+            bot.send_photo(message.chat.id, file_id)
+    elif "file_id" in card:
         bot.send_photo(message.chat.id, card["file_id"])
-    else:
-        bot.send_message(message.chat.id, card.get("text", "Нет изображения или текста"))
 
-# Колода: Фокус внимания
-@bot.message_handler(func=lambda m: m.text == "🎯 Фокус внимания")
-def handle_focus(message):
-    if not fokus_cards:
-        bot.send_message(message.chat.id, "Колода пуста 🎯")
-        return
-    card = random.choice(fokus_cards)
-    if "file_id" in card:
-        bot.send_photo(message.chat.id, card["file_id"])
-    else:
-        bot.send_message(message.chat.id, card.get("text", "Нет изображения или текста"))
-
-# Колода: Мудрость
 @bot.message_handler(func=lambda m: m.text == "🪶 Мудрость")
 def handle_wisdom(message):
-    if not wise_cards:
+    cards = load_cards("wise_cards.json")
+    if not cards:
         bot.send_message(message.chat.id, "Колода пуста 🪶")
         return
-    card = random.choice(wise_cards)
-    if "text" in card:
-        bot.send_message(message.chat.id, card["text"])
-    else:
-        bot.send_message(message.chat.id, "Карта без текста")
+    card = random.choice(cards)
+    bot.send_message(message.chat.id, card.get("text", "Карта без текста"))
 
-# Дополнения: трансформация, страхи, благословения
-@bot.message_handler(func=lambda m: m.text == "🔥 Необходимая трансформация")
+@bot.message_handler(func=lambda m: m.text == "🌀 Процессы")
+def handle_process(message):
+    cards = load_cards("processes.json")
+    if not cards:
+        bot.send_message(message.chat.id, "Колода пуста 🌀")
+        return
+    card = random.choice(cards)
+    if "file_id" in card:
+        bot.send_photo(message.chat.id, card["file_id"])
+
+@bot.message_handler(func=lambda m: m.text == "🐾 Послания зверей")
+def handle_animals(message):
+    cards = load_cards("wise_animales.json")
+    if not cards:
+        bot.send_message(message.chat.id, "Колода пуста 🐾")
+        return
+    card = random.choice(cards)
+    if "file_id" in card:
+        bot.send_photo(message.chat.id, card["file_id"])
+
+@bot.message_handler(func=lambda m: m.text == "🐅 Животные силы")
+def handle_power_animals(message):
+    cards = load_cards("power_animals.json")
+    if not cards:
+        bot.send_message(message.chat.id, "Колода пуста 🐅")
+        return
+    card = random.choice(cards)
+    if "file_id" in card:
+        bot.send_photo(message.chat.id, card["file_id"])
+
+@bot.message_handler(func=lambda m: m.text == "🧚 Сказочные герои")
+def handle_fairytale(message):
+    cards = load_cards("fairytale_heroes.json")
+    if not cards:
+        bot.send_message(message.chat.id, "Колода пуста 🧚")
+        return
+    card = random.choice(cards)
+    if "file_id" in card:
+        bot.send_photo(message.chat.id, card["file_id"])
+
+@bot.message_handler(func=lambda m: m.text == "🎯 Фокус внимания")
+def handle_focus(message):
+    cards = load_cards("focus_cards.json")
+    if not cards:
+        bot.send_message(message.chat.id, "Колода пуста 🎯")
+        return
+    card = random.choice(cards)
+    if "file_id" in card:
+        bot.send_photo(message.chat.id, card["file_id"])
+
+# Причины: Трансформация, страхи, разрешения
+@bot.message_handler(func=lambda m: m.text == "🔥 Трансформация")
 def handle_transform(message):
-    if not transform_cards:
+    cards = load_cards("transformation.json")
+    if not cards:
         bot.send_message(message.chat.id, "Список трансформаций пуст 🔥")
         return
-    text = random.choice(transform_cards).get("text", "")
-    bot.send_message(message.chat.id, f"🔥 Необходимая трансформация:
-{text}")
+    text = random.choice(cards).get("text", "")
+    bot.send_message(message.chat.id, f"🔥 Необходимая трансформация:\n{text}")
 
 @bot.message_handler(func=lambda m: m.text == "😱 Страхи")
 def handle_fears(message):
-    if not fear_cards:
+    cards = load_cards("fears.json")
+    if not cards:
         bot.send_message(message.chat.id, "Список страхов пуст 😱")
         return
-    text = random.choice(fear_cards).get("text", "")
-    bot.send_message(message.chat.id, f"😱 Твой страх:
-{text}")
+    text = random.choice(cards).get("text", "")
+    bot.send_message(message.chat.id, f"😱 Твой страх:\n{text}")
 
-@bot.message_handler(func=lambda m: m.text == "💫 Благословения")
+@bot.message_handler(func=lambda m: m.text == "💫 Разрешения")
 def handle_blessings(message):
-    if not blessing_cards:
-        bot.send_message(message.chat.id, "Список благословений пуст 💫")
+    cards = load_cards("blessings.json")
+    if not cards:
+        bot.send_message(message.chat.id, "Список разрешений пуст 💫")
         return
-    text = random.choice(blessing_cards).get("text", "")
-    bot.send_message(message.chat.id, f"💫 Благословение:
-{text}")
+    text = random.choice(cards).get("text", "")
+    bot.send_message(message.chat.id, f"💫 Твоё разрешение:\n{text}")
 
-# Колода: Процессы
-@bot.message_handler(func=lambda m: m.text == "🌀 Процессы")
-def handle_processes(message):
-    if not process_cards:
-        bot.send_message(message.chat.id, "Колода пуста 🌀")
-        return
-    card = random.choice(process_cards)
-    if "file_id" in card:
-        bot.send_photo(message.chat.id, card["file_id"])
-
-# Колода: Послания зверей
-@bot.message_handler(func=lambda m: m.text == "🐾 Послания зверей")
-def handle_animals(message):
-    if not wise_animals:
-        bot.send_message(message.chat.id, "Колода пуста 🐾")
-        return
-    card = random.choice(wise_animals)
-    if "file_id" in card:
-        bot.send_photo(message.chat.id, card["file_id"])
-
-# Колода: Животные силы
-@bot.message_handler(func=lambda m: m.text == "🐅 Животные силы")
-def handle_power_animals(message):
-    if not power_animals:
-        bot.send_message(message.chat.id, "Колода пуста 🐅")
-        return
-    card = random.choice(power_animals)
-    if "file_id" in card:
-        bot.send_photo(message.chat.id, card["file_id"])
-
-# Webhook
+# Webhook (если используется)
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
     update = telebot.types.Update.de_json(request.stream.read().decode("utf-8"))
     bot.process_new_updates([update])
     return "OK", 200
 
-# Запуск
 if __name__ == "__main__":
     bot.remove_webhook()
     bot.set_webhook(url=f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/{TOKEN}")
