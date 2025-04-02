@@ -12,6 +12,8 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
+user_sessions = {}
+
 def load_cards(filename):
     try:
         with open(filename, "r", encoding="utf-8") as f:
@@ -139,7 +141,38 @@ def send_card_with_analysis(chat_id, card):
 
     markup = InlineKeyboardMarkup()
     markup.add(InlineKeyboardButton("Анализировать карту", callback_data="analyze_last"))
+    markup.add(InlineKeyboardButton("🗣 Хочу обсудить это", callback_data="start_chat"))
     bot.send_message(chat_id, "Хочешь я помогу тебе понять глубже значение этой карты?", reply_markup=markup)
+
+@bot.callback_query_handler(func=lambda call: call.data == "start_chat")
+def start_chat_session(call):
+    chat_id = call.message.chat.id
+    user_sessions[chat_id] = []
+    bot.send_message(chat_id, "Давай обсудим карту. Расскажи, что она тебе напомнила или какие чувства вызвала?")
+
+@bot.message_handler(func=lambda m: m.chat.id in user_sessions)
+def handle_user_chat(message):
+    chat_id = message.chat.id
+    user_sessions[chat_id].append({"role": "user", "content": message.text})
+    response = call_gpt35(user_sessions[chat_id])
+    user_sessions[chat_id].append({"role": "assistant", "content": response})
+    bot.send_message(chat_id, response)
+
+def call_gpt35(history):
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "model": "gpt-3.5-turbo",
+        "messages": history,
+        "max_tokens": 500
+    }
+    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data)
+    if response.status_code == 200:
+        return response.json()["choices"][0]["message"]["content"]
+    else:
+        return "⚠️ Ошибка при обращении к чату: " + response.text
 
 @bot.message_handler(content_types=['photo'])
 def receive_photo(message):
@@ -148,6 +181,7 @@ def receive_photo(message):
     bot.send_photo(message.chat.id, file_id)
     markup = InlineKeyboardMarkup()
     markup.add(InlineKeyboardButton("Анализировать карту", callback_data="analyze_last"))
+    markup.add(InlineKeyboardButton("🗣 Хочу обсудить это", callback_data="start_chat"))
     bot.send_message(message.chat.id, "Хочешь я помогу тебе понять глубже значение этой карты?", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: call.data == "analyze_last")
@@ -214,8 +248,8 @@ def send_random_text(message, filename, label):
         bot.send_message(message.chat.id, f"Список пуст — {label}")
         return
     text = random.choice(cards).get("text", "")
-    bot.send_message(message.chat.id, f"{label}:{text}")
-
+    bot.send_message(message.chat.id, f"{label}:
+{text}")
 
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
@@ -227,3 +261,4 @@ if __name__ == "__main__":
     bot.remove_webhook()
     bot.set_webhook(url=f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/{TOKEN}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
