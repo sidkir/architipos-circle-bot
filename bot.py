@@ -210,8 +210,7 @@ def send_random_text(message, filename, label):
         bot.send_message(message.chat.id, f"Список пуст — {label}")
         return
     text = random.choice(cards).get("text", "")
-    bot.send_message(message.chat.id, f"{label}:
-{text}")
+    bot.send_message(message.chat.id, f"{label}:\n{text}")
 
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
