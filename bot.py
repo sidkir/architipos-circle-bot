@@ -119,7 +119,10 @@ def handle_wisdom(message):
         bot.send_message(message.chat.id, "Колода пуста 🪶")
         return
     card = random.choice(cards)
-    bot.send_message(message.chat.id, card.get("text", "Карта без текста"))
+    if "file_id" in card:
+        bot.send_photo(message.chat.id, card["file_id"])
+    else:
+        bot.send_message(message.chat.id, "Карта без изображения 🪶")
 
 @bot.message_handler(func=lambda m: m.text == "🌀 Процессы")
 def handle_process(message):
@@ -210,3 +213,4 @@ if __name__ == "__main__":
     bot.remove_webhook()
     bot.set_webhook(url=f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/{TOKEN}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
