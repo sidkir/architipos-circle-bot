@@ -9,6 +9,7 @@ from telebot.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMar
 
 TOKEN = os.environ["TOKEN"]
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
@@ -162,10 +163,6 @@ def analyze_last_card(call):
     analysis = call_gpt_for_image(file)
     bot.send_message(chat_id, analysis)
 
-@bot.message_handler(func=lambda m: m.text == "🧠 Анализ фото")
-def prompt_for_photo(message):
-    bot.send_message(message.chat.id, "Отправь изображение карты, которую хочешь проанализировать.")
-
 def call_gpt_for_image(image_bytes):
     base64_image = base64.b64encode(image_bytes).decode('utf-8')
     headers = {
@@ -191,6 +188,33 @@ def call_gpt_for_image(image_bytes):
         return response.json()["choices"][0]["message"]["content"]
     else:
         return f"⚠️ Ошибка: {response.status_code} — {response.text}"
+
+@bot.message_handler(func=lambda m: m.text == "🧠 Анализ фото")
+def prompt_for_photo(message):
+    bot.send_message(message.chat.id, "Отправь изображение карты, которую хочешь проанализировать.")
+
+@bot.message_handler(func=lambda m: m.text not in ["📚 Колоды", "🧱 Причины", "🔮 Послание дня", "⬅️ Назад"])
+def handle_deepseek_text(message):
+    response = call_deepseek(message.text)
+    bot.send_message(message.chat.id, response)
+
+def call_deepseek(prompt):
+    headers = {
+        "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "model": "deepseek-chat",
+        "messages": [
+            {"role": "system", "content": "Ты профессиональный психолог и коуч, работаешь с метафорами, глубинными запросами и трансформациями. Веди беседу мягко, исследуй с клиентом смысл его слов и карты."},
+            {"role": "user", "content": prompt}
+        ]
+    }
+    r = requests.post("https://api.deepseek.com/v1/chat/completions", headers=headers, json=data)
+    if r.status_code == 200:
+        return r.json()["choices"][0]["message"]["content"]
+    else:
+        return f"⚠️ Ошибка DeepSeek: {r.status_code}"
 
 @bot.message_handler(func=lambda m: m.text == "🔥 Трансформация")
 def handle_transform(message):
@@ -222,3 +246,4 @@ if __name__ == "__main__":
     bot.remove_webhook()
     bot.set_webhook(url=f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/{TOKEN}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
