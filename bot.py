@@ -12,7 +12,6 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
-# Загрузка колоды при обращении (ленивая загрузка)
 def load_cards(filename):
     try:
         with open(filename, "r", encoding="utf-8") as f:
@@ -20,7 +19,6 @@ def load_cards(filename):
     except:
         return []
 
-# Главное меню
 main_menu = ReplyKeyboardMarkup(resize_keyboard=True)
 main_menu.add(
     KeyboardButton("🔮 Послание дня"),
@@ -29,7 +27,6 @@ main_menu.add(
     KeyboardButton("🧠 Анализ фото")
 )
 
-# Подменю колод
 deck_menu = ReplyKeyboardMarkup(resize_keyboard=True)
 deck_menu.add(
     KeyboardButton("🧿 Архетипы"),
@@ -42,7 +39,6 @@ deck_menu.add(
     KeyboardButton("⬅️ Назад")
 )
 
-# Подменю причин
 reason_menu = ReplyKeyboardMarkup(resize_keyboard=True)
 reason_menu.add(
     KeyboardButton("🔥 Трансформация"),
@@ -93,64 +89,41 @@ def daily_message(message):
 def go_back(message):
     bot.send_message(message.chat.id, "Возвращаюсь в главное меню:", reply_markup=main_menu)
 
-# Обработчики колод
 @bot.message_handler(func=lambda m: m.text == "🧿 Архетипы")
 def deck_archetypes(message):
-    cards = load_cards("cards.json")
-    if not cards:
-        bot.send_message(message.chat.id, "Колода пуста 😕")
-        return
-    send_card_with_analysis(message.chat.id, random.choice(cards))
+    send_random_card_from_file(message, "cards.json")
 
 @bot.message_handler(func=lambda m: m.text == "🪶 Мудрость")
 def deck_wisdom(message):
-    cards = load_cards("wise_cards.json")
-    if not cards:
-        bot.send_message(message.chat.id, "Колода пуста 😕")
-        return
-    send_card_with_analysis(message.chat.id, random.choice(cards))
+    send_random_card_from_file(message, "wise_cards.json")
 
 @bot.message_handler(func=lambda m: m.text == "🌀 Процессы")
 def deck_processes(message):
-    cards = load_cards("processes.json")
-    if not cards:
-        bot.send_message(message.chat.id, "Колода пуста 😕")
-        return
-    send_card_with_analysis(message.chat.id, random.choice(cards))
+    send_random_card_from_file(message, "processes.json")
 
 @bot.message_handler(func=lambda m: m.text == "🐾 Послания зверей")
 def deck_wise_animals(message):
-    cards = load_cards("wise_animales.json")
-    if not cards:
-        bot.send_message(message.chat.id, "Колода пуста 😕")
-        return
-    send_card_with_analysis(message.chat.id, random.choice(cards))
+    send_random_card_from_file(message, "wise_animales.json")
 
 @bot.message_handler(func=lambda m: m.text == "🐅 Животные силы")
 def deck_power_animals(message):
-    cards = load_cards("power_animals.json")
-    if not cards:
-        bot.send_message(message.chat.id, "Колода пуста 😕")
-        return
-    send_card_with_analysis(message.chat.id, random.choice(cards))
+    send_random_card_from_file(message, "power_animals.json")
 
 @bot.message_handler(func=lambda m: m.text == "🧚 Сказочные герои")
 def deck_fairytale(message):
-    cards = load_cards("fairytale_heroes.json")
-    if not cards:
-        bot.send_message(message.chat.id, "Колода пуста 😕")
-        return
-    send_card_with_analysis(message.chat.id, random.choice(cards))
+    send_random_card_from_file(message, "fairytale_heroes.json")
 
 @bot.message_handler(func=lambda m: m.text == "🎯 Фокус внимания")
 def deck_focus(message):
-    cards = load_cards("focus_cards.json")
+    send_random_card_from_file(message, "focus_cards.json")
+
+def send_random_card_from_file(message, filename):
+    cards = load_cards(filename)
     if not cards:
         bot.send_message(message.chat.id, "Колода пуста 😕")
         return
     send_card_with_analysis(message.chat.id, random.choice(cards))
 
-# Кнопка анализа после получения карты
 last_images = {}
 
 def send_card_with_analysis(chat_id, card):
@@ -193,7 +166,6 @@ def analyze_last_card(call):
 def prompt_for_photo(message):
     bot.send_message(message.chat.id, "Отправь изображение карты, которую хочешь проанализировать.")
 
-# GPT-анализ изображения через OpenAI Vision API
 def call_gpt_for_image(image_bytes):
     base64_image = base64.b64encode(image_bytes).decode('utf-8')
     headers = {
@@ -220,35 +192,27 @@ def call_gpt_for_image(image_bytes):
     else:
         return f"⚠️ Ошибка: {response.status_code} — {response.text}"
 
-# Причины
 @bot.message_handler(func=lambda m: m.text == "🔥 Трансформация")
 def handle_transform(message):
-    cards = load_cards("transformation.json")
-    if not cards:
-        bot.send_message(message.chat.id, "Список трансформаций пуст 🔥")
-        return
-    text = random.choice(cards).get("text", "")
-    bot.send_message(message.chat.id, f"🔥 Необходимая трансформация:\n{text}")
+    send_random_text(message, "transformation.json", "🔥 Необходимая трансформация")
 
 @bot.message_handler(func=lambda m: m.text == "😱 Страхи")
 def handle_fears(message):
-    cards = load_cards("fears.json")
-    if not cards:
-        bot.send_message(message.chat.id, "Список страхов пуст 😱")
-        return
-    text = random.choice(cards).get("text", "")
-    bot.send_message(message.chat.id, f"😱 Твой страх:\n{text}")
+    send_random_text(message, "fears.json", "😱 Твой страх")
 
 @bot.message_handler(func=lambda m: m.text == "💫 Разрешения")
 def handle_blessings(message):
-    cards = load_cards("blessings.json")
+    send_random_text(message, "blessings.json", "💫 Твоё разрешение")
+
+def send_random_text(message, filename, label):
+    cards = load_cards(filename)
     if not cards:
-        bot.send_message(message.chat.id, "Список разрешений пуст 💫")
+        bot.send_message(message.chat.id, f"Список пуст — {label}")
         return
     text = random.choice(cards).get("text", "")
-    bot.send_message(message.chat.id, f"💫 Твоё разрешение:\n{text}")
+    bot.send_message(message.chat.id, f"{label}:
+{text}")
 
-# Webhook
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
     update = telebot.types.Update.de_json(request.stream.read().decode("utf-8"))
@@ -259,3 +223,4 @@ if __name__ == "__main__":
     bot.remove_webhook()
     bot.set_webhook(url=f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/{TOKEN}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
