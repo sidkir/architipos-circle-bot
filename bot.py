@@ -93,22 +93,80 @@ def daily_message(message):
 def go_back(message):
     bot.send_message(message.chat.id, "Возвращаюсь в главное меню:", reply_markup=main_menu)
 
+# Обработчики колод
+@bot.message_handler(func=lambda m: m.text == "🧿 Архетипы")
+def deck_archetypes(message):
+    cards = load_cards("cards.json")
+    if not cards:
+        bot.send_message(message.chat.id, "Колода пуста 😕")
+        return
+    send_card_with_analysis(message.chat.id, random.choice(cards))
+
+@bot.message_handler(func=lambda m: m.text == "🪶 Мудрость")
+def deck_wisdom(message):
+    cards = load_cards("wise_cards.json")
+    if not cards:
+        bot.send_message(message.chat.id, "Колода пуста 😕")
+        return
+    send_card_with_analysis(message.chat.id, random.choice(cards))
+
+@bot.message_handler(func=lambda m: m.text == "🌀 Процессы")
+def deck_processes(message):
+    cards = load_cards("processes.json")
+    if not cards:
+        bot.send_message(message.chat.id, "Колода пуста 😕")
+        return
+    send_card_with_analysis(message.chat.id, random.choice(cards))
+
+@bot.message_handler(func=lambda m: m.text == "🐾 Послания зверей")
+def deck_wise_animals(message):
+    cards = load_cards("wise_animales.json")
+    if not cards:
+        bot.send_message(message.chat.id, "Колода пуста 😕")
+        return
+    send_card_with_analysis(message.chat.id, random.choice(cards))
+
+@bot.message_handler(func=lambda m: m.text == "🐅 Животные силы")
+def deck_power_animals(message):
+    cards = load_cards("power_animals.json")
+    if not cards:
+        bot.send_message(message.chat.id, "Колода пуста 😕")
+        return
+    send_card_with_analysis(message.chat.id, random.choice(cards))
+
+@bot.message_handler(func=lambda m: m.text == "🧚 Сказочные герои")
+def deck_fairytale(message):
+    cards = load_cards("fairytale_heroes.json")
+    if not cards:
+        bot.send_message(message.chat.id, "Колода пуста 😕")
+        return
+    send_card_with_analysis(message.chat.id, random.choice(cards))
+
+@bot.message_handler(func=lambda m: m.text == "🎯 Фокус внимания")
+def deck_focus(message):
+    cards = load_cards("focus_cards.json")
+    if not cards:
+        bot.send_message(message.chat.id, "Колода пуста 😕")
+        return
+    send_card_with_analysis(message.chat.id, random.choice(cards))
+
 # Кнопка анализа после получения карты
+last_images = {}
+
 def send_card_with_analysis(chat_id, card):
     if "file_ids" in card:
         for file_id in card["file_ids"]:
             bot.send_photo(chat_id, file_id)
+            last_images[chat_id] = file_id
     elif "file_id" in card:
         bot.send_photo(chat_id, card["file_id"])
+        last_images[chat_id] = card["file_id"]
     elif "text" in card:
         bot.send_message(chat_id, card["text"])
 
     markup = InlineKeyboardMarkup()
     markup.add(InlineKeyboardButton("Анализировать карту", callback_data="analyze_last"))
     bot.send_message(chat_id, "Хочешь я помогу тебе понять глубже значение этой карты?", reply_markup=markup)
-
-# Хранение последнего изображения для анализа
-last_images = {}
 
 @bot.message_handler(content_types=['photo'])
 def receive_photo(message):
@@ -131,7 +189,6 @@ def analyze_last_card(call):
     analysis = call_gpt_for_image(file)
     bot.send_message(chat_id, analysis)
 
-# Отдельная кнопка "Анализ фото"
 @bot.message_handler(func=lambda m: m.text == "🧠 Анализ фото")
 def prompt_for_photo(message):
     bot.send_message(message.chat.id, "Отправь изображение карты, которую хочешь проанализировать.")
@@ -139,43 +196,27 @@ def prompt_for_photo(message):
 # GPT-анализ изображения через OpenAI Vision API
 def call_gpt_for_image(image_bytes):
     base64_image = base64.b64encode(image_bytes).decode('utf-8')
-
     headers = {
         "Authorization": f"Bearer {OPENAI_API_KEY}",
         "Content-Type": "application/json"
     }
-
     data = {
-        "model": "gpt-4-vision-preview",
+        "model": "gpt-4-vision",
         "messages": [
-            {
-                "role": "system",
-                "content": "Ты психолог, коуч и наставник, который интерпретирует изображения карт глубоко, метафорично и символически. Не давай прямых указаний, помогай клиенту осознать, что ему важно. Можешь задавать наводящие вопросы, если нужно прояснить смысл."
-            },
+            {"role": "system", "content": "Ты психолог, коуч и наставник, который интерпретирует изображения карт глубоко, метафорично и символически. Не давай прямых указаний, помогай клиенту осознать, что ему важно. Можешь задавать наводящие вопросы, если нужно прояснить смысл."},
             {
                 "role": "user",
                 "content": [
-                    {
-                        "type": "text",
-                        "text": "Проанализируй это изображение карты и скажи, что оно может символизировать. Какое послание в ней скрыто?"
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{base64_image}"
-                        }
-                    }
+                    {"type": "text", "text": "Проанализируй это изображение карты и скажи, что оно может символизировать. Какое послание в ней скрыто?"},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
                 ]
             }
         ],
         "max_tokens": 700
     }
-
     response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data)
-
     if response.status_code == 200:
-        result = response.json()
-        return result["choices"][0]["message"]["content"]
+        return response.json()["choices"][0]["message"]["content"]
     else:
         return f"⚠️ Ошибка: {response.status_code} — {response.text}"
 
