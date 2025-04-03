@@ -78,7 +78,7 @@ TEXT_DECKS = ["transformation.json", "fears.json", "blessings.json"]
 def send_card_with_analysis(chat_id, card, is_text_deck=False, message_suffix=""):
     if is_text_deck:
         text = card.get("text", "")
-        label = next((lbl for key, (file, lbl) in REASONS.items() if file == chat_id), "")
+        label = next((lbl for key, (file, lbl) in REASONS.items() if file in TEXT_DECKS), "")
         bot.send_message(chat_id, f"{label}: {text}")
     elif "file_ids" in card:
         for file_id in card["file_ids"]:
@@ -89,9 +89,10 @@ def send_card_with_analysis(chat_id, card, is_text_deck=False, message_suffix=""
         last_images[chat_id] = file_id
     elif "text" in card:
         bot.send_message(chat_id, card["text"])
+        last_images[chat_id] = None  # Для текстовых карт без изображения
 
     markup = InlineKeyboardMarkup()
-    if not is_text_deck:
+    if not is_text_deck and last_images.get(chat_id):  # Проверяем, есть ли изображение
         markup.add(InlineKeyboardButton("Анализировать карту", callback_data="analyze_last"))
     markup.add(InlineKeyboardButton("🗣 Обсудить это", callback_data="start_chat"))
     question = "Хочешь я помогу тебе понять глубже значение этой карты?" if not is_text_deck else "Хочешь поговорить об этом?"
@@ -156,7 +157,7 @@ def handle_deck_selection(message):
 
 @bot.message_handler(func=lambda m: m.text in REASONS)
 def handle_reason_selection(message):
-    filename, label = REASONS[message.text]
+    filename, _ = REASONS[message.text]
     send_random_card(message.chat.id, filename)
 
 # Чат и анализ
