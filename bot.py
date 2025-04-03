@@ -150,6 +150,7 @@ def show_blessings(message):
 def send_card_with_analysis(chat_id, card):
     markup = InlineKeyboardMarkup()
     markup.add(InlineKeyboardButton("🧠 Анализировать карту", callback_data=f"analyze|{card.get('file_id','')}"))
+    markup.add(InlineKeyboardButton("💬 Хочу обсудить это", callback_data=f"discuss|{card.get('file_id','')}"))
     if "file_ids" in card:
         for fid in card["file_ids"]:
             bot.send_photo(chat_id, fid, reply_markup=markup)
@@ -211,12 +212,20 @@ def handle_analysis(call):
     except:
         bot.send_message(call.message.chat.id, "⚠️ Ошибка анализа изображения")
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith("discuss|"))
+def handle_discussion(call):
+    file_id = call.data.split("|")[1]
+    bot.send_message(call.message.chat.id, "💬 О чём ты хочешь поговорить? Просто напиши сюда.")
+
 @bot.message_handler(content_types=['photo'])
 def handle_photo_for_analysis(message):
     file_id = message.photo[-1].file_id
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton("🧠 Хочу обсудить это", callback_data=f"analyze|{file_id}"))
-    bot.send_photo(message.chat.id, file_id, caption="Получено изображение.", reply_markup=markup)
+    markup.add(
+        InlineKeyboardButton("🧠 Анализировать карту", callback_data=f"analyze|{file_id}"),
+        InlineKeyboardButton("💬 Хочу обсудить это", callback_data=f"discuss|{file_id}")
+    )
+    bot.send_photo(message.chat.id, file_id, caption="Вот твоя карта. Что ты хочешь сделать?", reply_markup=markup)
 
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
