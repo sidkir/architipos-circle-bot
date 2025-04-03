@@ -141,26 +141,49 @@ def deck_focus(message):
 
 @bot.message_handler(func=lambda m: m.text == "🔥 Трансформация")
 def show_transformation(message):
-    items = load_cards("transformation.json")
-    if not items:
-        bot.send_message(message.chat.id, "Список трансформаций пуст.")
-        return
-    bot.send_message(message.chat.id, random.choice(items))
+    show_text_from_file(message, "transformation.json")
 
 @bot.message_handler(func=lambda m: m.text == "😱 Страхи")
 def show_fears(message):
-    items = load_cards("fears.json")
-    if not items:
-        bot.send_message(message.chat.id, "Список страхов пуст.")
-        return
-    bot.send_message(message.chat.id, random.choice(items))
+    show_text_from_file(message, "fears.json")
 
 @bot.message_handler(func=lambda m: m.text == "💫 Разрешения")
 def show_blessings(message):
-    items = load_cards("blessings.json")
-    if not items:
-        bot.send_message(message.chat.id, "Список разрешений пуст.")
+    show_text_from_file(message, "blessings.json")
+
+def send_card_with_analysis(chat_id, card):
+    if "file_ids" in card:
+        for fid in card["file_ids"]:
+            bot.send_photo(chat_id, fid)
+    elif "file_id" in card:
+        bot.send_photo(chat_id, card["file_id"])
+
+def send_random_card_from_file(message, filename):
+    cards = load_cards(filename)
+    if not cards:
+        bot.send_message(message.chat.id, "Колода пуста или не найдена")
         return
-    bot.send_message(message.chat.id, random.choice(items))
+    card = random.choice(cards)
+    send_card_with_analysis(message.chat.id, card)
 
+def show_text_from_file(message, filename):
+    try:
+        with open(filename, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, list):
+            bot.send_message(message.chat.id, random.choice(data))
+        else:
+            bot.send_message(message.chat.id, "Файл не в ожидаемом формате")
+    except Exception as e:
+        bot.send_message(message.chat.id, f"Ошибка чтения файла: {e}")
 
+@app.route(f"/{TOKEN}", methods=["POST"])
+def webhook():
+    update = telebot.types.Update.de_json(request.stream.read().decode("utf-8"))
+    bot.process_new_updates([update])
+    return "OK", 200
+
+if __name__ == "__main__":
+    bot.remove_webhook()
+    bot.set_webhook(url=f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/{TOKEN}")
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
