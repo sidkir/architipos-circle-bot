@@ -7,14 +7,17 @@ import base64
 from flask import Flask, request
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
+# Инициализация
 TOKEN = os.environ["TOKEN"]
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
+# Хранилища
 user_sessions = {}
+last_images = {}
 
-
+# Загрузка карт из JSON
 def load_cards(filename):
     try:
         with open(filename, "r", encoding="utf-8") as f:
@@ -22,12 +25,12 @@ def load_cards(filename):
     except:
         return []
 
-
+# Меню
 main_menu = ReplyKeyboardMarkup(resize_keyboard=True)
 main_menu.add(
-    KeyboardButton("🔮 Карта дня"),
-    KeyboardButton("💡 Совет"),
+    KeyboardButton("🔮 Послание дня"),
     KeyboardButton("📚 Колоды"),
+    KeyboardButton("🧱 Причины"),
     KeyboardButton("🧠 Анализ фото")
 )
 
@@ -40,7 +43,6 @@ deck_menu.add(
     KeyboardButton("🐅 Животные силы"),
     KeyboardButton("🧚 Сказочные герои"),
     KeyboardButton("🎯 Фокус внимания"),
-    KeyboardButton("🧱 Причины"),
     KeyboardButton("⬅️ Назад")
 )
 
@@ -52,181 +54,178 @@ reason_menu.add(
     KeyboardButton("⬅️ Назад")
 )
 
+# Конфигурация колод и причин
+DECKS = {
+    "🧿 Архетипы": "cards.json",
+    "🪶 Мудрость": "wise_cards.json",
+    "🌀 Процессы": "processes.json",
+    "🐾 Послания зверей": "wise_animales.json",
+    "🐅 Животные силы": "power_animals.json",
+    "🧚 Сказочные герои": "fairytale_heroes.json",
+    "🎯 Фокус внимания": "focus_cards.json"
+}
+
+REASONS = {
+    "🔥 Трансформация": ("transformation.json", "🔥 Необходимая трансформация"),
+    "😱 Страхи": ("fears.json", "😱 Твой страх"),
+    "💫 Разрешения": ("blessings.json", "💫 Твоё разрешение")
+}
+
+# Общие функции
+def send_card_with_analysis(chat_id, card):
+    if "file_ids" in card:
+        for file_id in card["file_ids"]:
+            bot.send_photo(chat_id, file_id)
+            last_images[chat_id] = file_id
+    elif "file_id" in card:
+        bot.send_photo(chat_id, card["file_id"])
+        last_images[chat_id] = card["file_id"]
+    elif "text" in card:
+        bot.send_message(chat_id, card["text"])
+
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton("Анализировать карту", callback_data="analyze_last"))
+    markup.add(InlineKeyboardButton("🗣 Обсудить это", callback_data="start_chat"))
+    bot.send_message(chat_id, "Хочешь я помогу тебе понять глубже значение этой карты?", reply_markup=markup)
+
+def send_random_card(chat_id, filename):
+    cards = load_cards(filename)
+    if not cards:
+        bot.send_message(chat_id, "Колода пуста 😕")
+        return
+    send_card_with_analysis(chat_id, random.choice(cards))
+
+def send_random_text(chat_id, filename, label):
+    cards = load_cards(filename)
+    if not cards:
+        bot.send_message(chat_id, f"Список пуст — {label}")
+        return
+    text = random.choice(cards).get("text", "")
+    bot.send_message(chat_id, f"{label}: {text}")
+    
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton("🗣 Обсудить это", callback_data="start_chat"))
+    bot.send_message(chat_id, "Хочешь поговорить об этом?", reply_markup=markup)
+
+# Обработчики команд и меню
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.send_message(
-        message.chat.id,
-        "Привет! Выбери, с чего хочешь начать:",
-        reply_markup=main_menu
-    )
+    bot.send_message(message.chat.id, "Привет! Выбери, с чего хочешь начать:", reply_markup=main_menu)
 
 @bot.message_handler(func=lambda m: m.text == "📚 Колоды")
 def show_decks(message):
     bot.send_message(
         message.chat.id,
-        "Задумайся над своим запросом. Выбери колоду и нажми на нее, держа в голове свой вопрос. Ты получишь метафорический ответ.",
+        "Задумайся над своим запросом. Выбери колоду и нажми на нее, держа в голове свой вопрос.",
         reply_markup=deck_menu
     )
 
 @bot.message_handler(func=lambda m: m.text == "🧱 Причины")
 def show_reasons(message):
-    bot.send_message(
-        message.chat.id,
-        "Выбери, с чем хочешь поработать:",
-        reply_markup=reason_menu
-    )
+    bot.send_message(message.chat.id, "Выбери, с чем хочешь поработать:", reply_markup=reason_menu)
 
-@bot.message_handler(func=lambda m: m.text == "🔮 Карта дня")
+@bot.message_handler(func=lambda m: m.text == "🔮 Послание дня")
 def daily_message(message):
-    all_files = [
-        "cards.json", "wise_cards.json", "processes.json",
-        "wise_animales.json", "power_animals.json",
-        "focus_cards.json", "fairytale_heroes.json"
-    ]
-    all_cards = []
-    for file in all_files:
-        all_cards.extend(load_cards(file))
-    card = random.choice(all_cards)
-    send_card_with_analysis(message.chat.id, card)
-
-@bot.message_handler(func=lambda m: m.text == "💡 Совет")
-def handle_advice(message):
-    all_files = [
-        "wise_cards.json", "processes.json", "focus_cards.json"
-    ]
-    all_cards = []
-    for file in all_files:
-        all_cards.extend(load_cards(file))
+    all_files = list(DECKS.values())
+    all_cards = [card for file in all_files for card in load_cards(file)]
     if not all_cards:
-        bot.send_message(message.chat.id, "Нет доступных карт для совета.")
+        bot.send_message(message.chat.id, "Нет доступных карт 😕")
         return
     card = random.choice(all_cards)
     send_card_with_analysis(message.chat.id, card)
+    bot.send_message(message.chat.id, "Эта карта — твое послание на сегодня. Что она тебе говорит?")
 
 @bot.message_handler(func=lambda m: m.text == "⬅️ Назад")
 def go_back(message):
     bot.send_message(message.chat.id, "Возвращаюсь в главное меню:", reply_markup=main_menu)
 
-@bot.message_handler(func=lambda m: m.text == "🧿 Архетипы")
-def deck_archetypes(message):
-    send_random_card_from_file(message, "cards.json")
+@bot.message_handler(func=lambda m: m.text in DECKS)
+def handle_deck_selection(message):
+    send_random_card(message.chat.id, DECKS[message.text])
 
-@bot.message_handler(func=lambda m: m.text == "🪶 Мудрость")
-def deck_wisdom(message):
-    send_random_card_from_file(message, "wise_cards.json")
+@bot.message_handler(func=lambda m: m.text in REASONS)
+def handle_reason_selection(message):
+    filename, label = REASONS[message.text]
+    send_random_text(message.chat.id, filename, label)
 
-@bot.message_handler(func=lambda m: m.text == "🌀 Процессы")
-def deck_processes(message):
-    send_random_card_from_file(message, "processes.json")
-
-@bot.message_handler(func=lambda m: m.text == "🐾 Послания зверей")
-def deck_wise_animals(message):
-    send_random_card_from_file(message, "wise_animales.json")
-
-@bot.message_handler(func=lambda m: m.text == "🐅 Животные силы")
-def deck_power_animals(message):
-    send_random_card_from_file(message, "power_animals.json")
-
-@bot.message_handler(func=lambda m: m.text == "🧚 Сказочные герои")
-def deck_fairytale(message):
-    send_random_card_from_file(message, "fairytale_heroes.json")
-
-@bot.message_handler(func=lambda m: m.text == "🎯 Фокус внимания")
-def deck_focus(message):
-    send_random_card_from_file(message, "focus_cards.json")
-
-@bot.message_handler(func=lambda m: m.text == "🔥 Трансформация")
-def show_transformation(message):
-    show_text_from_file(message, "transformation.json")
-
-@bot.message_handler(func=lambda m: m.text == "😱 Страхи")
-def show_fears(message):
-    show_text_from_file(message, "fears.json")
-
-@bot.message_handler(func=lambda m: m.text == "💫 Разрешения")
-def show_blessings(message):
-    show_text_from_file(message, "blessings.json")
-
-def send_card_with_analysis(chat_id, card):
+# Чат и анализ
+@bot.callback_query_handler(func=lambda call: call.data == "start_chat")
+def start_chat_session(call):
+    chat_id = call.message.chat.id
+    user_sessions[chat_id] = []
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton("🧠 Анализировать карту", callback_data=f"analyze|{card.get('file_id','')}"))
-    markup.add(InlineKeyboardButton("💬 Хочу обсудить это", callback_data=f"discuss|{card.get('file_id','')}"))
-    if "file_ids" in card:
-        for fid in card["file_ids"]:
-            bot.send_photo(chat_id, fid, reply_markup=markup)
-    elif "file_id" in card:
-        bot.send_photo(chat_id, card["file_id"], reply_markup=markup)
+    markup.add(InlineKeyboardButton("Закончить чат", callback_data="end_chat"))
+    bot.send_message(chat_id, "Давай обсудим. Расскажи, что вызвало у тебя эта карта или текст?", reply_markup=markup)
 
-def send_random_card_from_file(message, filename):
-    cards = load_cards(filename)
-    if not cards:
-        bot.send_message(message.chat.id, "Колода пуста или не найдена")
-        return
-    card = random.choice(cards)
-    send_card_with_analysis(message.chat.id, card)
+@bot.callback_query_handler(func=lambda call: call.data == "end_chat")
+def end_chat_session(call):
+    chat_id = call.message.chat.id
+    if chat_id in user_sessions:
+        del user_sessions[chat_id]
+    bot.send_message(chat_id, "Чат завершен. Возвращаюсь в меню:", reply_markup=main_menu)
 
-def show_text_from_file(message, filename):
-    try:
-        with open(filename, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        if isinstance(data, list):
-            bot.send_message(message.chat.id, random.choice(data))
-        else:
-            bot.send_message(message.chat.id, "Файл не в ожидаемом формате")
-    except Exception as e:
-        bot.send_message(message.chat.id, f"Ошибка чтения файла: {e}")
+@bot.message_handler(func=lambda m: m.chat.id in user_sessions)
+def handle_user_chat(message):
+    chat_id = message.chat.id
+    user_sessions[chat_id].append({"role": "user", "content": message.text})
+    response = call_gpt35(user_sessions[chat_id])
+    user_sessions[chat_id].append({"role": "assistant", "content": response})
+    bot.send_message(chat_id, response)
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("analyze|"))
-def handle_analysis(call):
-    file_id = call.data.split("|")[1]
-    bot.send_message(call.message.chat.id, "🔍 Анализирую карту...")
-
-    file_info = bot.get_file(file_id)
-    file_url = f"https://api.telegram.org/file/bot{TOKEN}/{file_info.file_path}"
-    response = requests.get(file_url)
-    img_base64 = base64.b64encode(response.content).decode('utf-8')
-
-    headers = {
-        "Authorization": f"Bearer {OPENAI_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "model": "gpt-4-vision-preview",
-        "messages": [
-            {"role": "system", "content": "Ты мудрый психолог и наставник. Анализируй карту метафорически, глубоко, мягко, помогая клиенту самому понять смысл."},
-            {"role": "user", "content": [
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_base64}"}},
-                {"type": "text", "text": "Что ты видишь на этой карте и какое это может иметь значение для меня?"}
-            ]}
-        ],
-        "max_tokens": 500
-    }
-
-    completion = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
-    result = completion.json()
-
-    try:
-        answer = result["choices"][0]["message"]["content"]
-        bot.send_message(call.message.chat.id, answer)
-    except:
-        bot.send_message(call.message.chat.id, "⚠️ Ошибка анализа изображения")
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith("discuss|"))
-def handle_discussion(call):
-    file_id = call.data.split("|")[1]
-    bot.send_message(call.message.chat.id, "💬 О чём ты хочешь поговорить? Просто напиши сюда.")
+def call_gpt35(history):
+    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"}
+    data = {"model": "gpt-3.5-turbo", "messages": history, "max_tokens": 500}
+    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data)
+    return response.json()["choices"][0]["message"]["content"] if response.status_code == 200 else f"⚠️ Ошибка: {response.text}"
 
 @bot.message_handler(content_types=['photo'])
-def handle_photo_for_analysis(message):
+def receive_photo(message):
     file_id = message.photo[-1].file_id
+    last_images[message.chat.id] = file_id
+    bot.send_photo(message.chat.id, file_id)
     markup = InlineKeyboardMarkup()
-    markup.add(
-        InlineKeyboardButton("🧠 Анализировать карту", callback_data=f"analyze|{file_id}"),
-        InlineKeyboardButton("💬 Хочу обсудить это", callback_data=f"discuss|{file_id}")
-    )
-    bot.send_photo(message.chat.id, file_id, caption="Вот твоя карта. Что ты хочешь сделать?", reply_markup=markup)
+    markup.add(InlineKeyboardButton("Анализировать карту", callback_data="analyze_last"))
+    markup.add(InlineKeyboardButton("🗣 Обсудить это", callback_data="start_chat"))
+    bot.send_message(message.chat.id, "Хочешь я помогу тебе понять эту карту?", reply_markup=markup)
 
+@bot.callback_query_handler(func=lambda call: call.data == "analyze_last")
+def analyze_last_card(call):
+    chat_id = call.message.chat.id
+    file_id = last_images.get(chat_id)
+    if not file_id:
+        bot.send_message(chat_id, "⚠️ Нет изображения для анализа")
+        return
+    file_info = bot.get_file(file_id)
+    file = bot.download_file(file_info.file_path)
+    analysis = call_gpt_for_image(file)
+    bot.send_message(chat_id, analysis)
+
+def call_gpt_for_image(image_bytes):
+    base64_image = base64.b64encode(image_bytes).decode('utf-8')
+    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"}
+    data = {
+        "model": "gpt-4o",
+        "messages": [
+            {"role": "system", "content": "Ты психолог, интерпретирующий карты метафорично и символически. Задавай вопросы, если нужно."},
+            {"role": "user", "content": [
+                {"type": "text", "text": "Проанализируй эту карту. Что она может символизировать?"},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+            ]}
+        ],
+        "max_tokens": 700
+    }
+    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data)
+    return response.json()["choices"][0]["message"]["content"] if response.status_code == 200 else f"⚠️ Ошибка: {response.text}"
+
+@bot.message_handler(func=lambda m: m.text == "🧠 Анализ фото")
+def prompt_for_photo(message):
+    bot.send_message(message.chat.id, "Отправь изображение карты для анализа.")
+
+@bot.message_handler(func=lambda m: m.text not in {btn.text for menu in [main_menu, deck_menu, reason_menu] for btn in menu.keyboard[0]})
+def handle_fallback_text(message):
+    bot.send_message(message.chat.id, "Я понимаю только команды и изображения. Выбери действие из меню.")
+
+# Вебхук
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
     update = telebot.types.Update.de_json(request.stream.read().decode("utf-8"))
