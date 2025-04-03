@@ -192,7 +192,7 @@ def end_chat_session(call):
 @bot.message_handler(func=lambda m: m.chat.id in user_sessions)
 def handle_user_chat(message):
     chat_id = message.chat.id
-   user_sessions[chat_id].append({"role": "user", "content": message.text})
+    user_sessions[chat_id].append({"role": "user", "content": message.text})
     response = call_gpt35(chat_id, user_sessions[chat_id])
     user_sessions[chat_id].append({"role": "assistant", "content": response})
     bot.send_message(chat_id, response)
