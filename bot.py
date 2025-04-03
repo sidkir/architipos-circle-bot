@@ -75,24 +75,29 @@ REASONS = {
 TEXT_DECKS = ["transformation.json", "fears.json", "blessings.json"]
 
 # Общие функции
-def send_card_with_analysis(chat_id, card, is_text_deck=False, message_suffix=""):
+def send_card_with_analysis(chat_id, card, filename, message_suffix=""):
+    is_text_deck = filename in TEXT_DECKS
+    has_image = False
+
     if is_text_deck:
         text = card.get("text", "")
-        label = next((lbl for key, (file, lbl) in REASONS.items() if file in TEXT_DECKS), "")
+        label = next((lbl for key, (file, lbl) in REASONS.items() if file == filename), "")
         bot.send_message(chat_id, f"{label}: {text}")
     elif "file_ids" in card:
         for file_id in card["file_ids"]:
             bot.send_photo(chat_id, file_id)
             last_images[chat_id] = file_id
+            has_image = True
     elif "file_id" in card:
         bot.send_photo(chat_id, card["file_id"])
-        last_images[chat_id] = file_id
+        last_images[chat_id] = card["file_id"]
+        has_image = True
     elif "text" in card:
         bot.send_message(chat_id, card["text"])
-        last_images[chat_id] = None  # Для текстовых карт без изображения
+        last_images[chat_id] = None
 
     markup = InlineKeyboardMarkup()
-    if not is_text_deck and last_images.get(chat_id):  # Проверяем, есть ли изображение
+    if has_image and not is_text_deck:
         markup.add(InlineKeyboardButton("Анализировать карту", callback_data="analyze_last"))
     markup.add(InlineKeyboardButton("🗣 Обсудить это", callback_data="start_chat"))
     question = "Хочешь я помогу тебе понять глубже значение этой карты?" if not is_text_deck else "Хочешь поговорить об этом?"
@@ -105,9 +110,8 @@ def send_random_card(chat_id, filename, message_suffix=""):
     if not cards:
         bot.send_message(chat_id, "Колода пуста 😕")
         return
-    is_text_deck = filename in TEXT_DECKS
     card = random.choice(cards)
-    send_card_with_analysis(chat_id, card, is_text_deck, message_suffix)
+    send_card_with_analysis(chat_id, card, filename, message_suffix)
 
 # Обработчики команд и меню
 @bot.message_handler(commands=['start'])
@@ -134,7 +138,8 @@ def daily_message(message):
         bot.send_message(message.chat.id, "Нет доступных карт 😕")
         return
     card = random.choice(all_cards)
-    send_card_with_analysis(message.chat.id, card, is_text_deck=False, message_suffix="Эта карта — твое послание на сегодня. Что она тебе говорит?")
+    filename = next((f for f in DECKS.values() if card in load_cards(f)), all_files[0])
+    send_card_with_analysis(message.chat.id, card, filename, "Эта карта — твое послание на сегодня. Что она тебе говорит?")
 
 @bot.message_handler(func=lambda m: m.text == "🔔 Совет")
 def advice(message):
@@ -144,7 +149,8 @@ def advice(message):
         bot.send_message(message.chat.id, "Нет доступных карт 😕")
         return
     card = random.choice(all_cards)
-    send_card_with_analysis(message.chat.id, card, is_text_deck=False, message_suffix="Что эта карта тебе советует?")
+    filename = next((f for f in DECKS.values() if card in load_cards(f)), all_files[0])
+    send_card_with_analysis(message.chat.id, card, filename, "Что эта карта тебе советует?")
 
 @bot.message_handler(func=lambda m: m.text == "⬅️ Назад")
 def go_back(message):
