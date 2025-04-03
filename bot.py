@@ -43,6 +43,12 @@ deck_menu.add(
     KeyboardButton("🐅 Животные силы"),
     KeyboardButton("🧚 Сказочные герои"),
     KeyboardButton("🎯 Фокус внимания"),
+    KeyboardButton("🧱 Причины"),
+    KeyboardButton("⬅️ Назад")
+)
+
+reason_menu = ReplyKeyboardMarkup(resize_keyboard=True)
+reason_menu.add(
     KeyboardButton("🔥 Трансформация"),
     KeyboardButton("😱 Страхи"),
     KeyboardButton("💫 Разрешения"),
@@ -57,24 +63,22 @@ DECKS = {
     "🐾 Послания зверей": "wise_animales.json",
     "🐅 Животные силы": "power_animals.json",
     "🧚 Сказочные герои": "fairytale_heroes.json",
-    "🎯 Фокус внимания": "focus_cards.json",
-    "🔥 Трансформация": "transformation.json",
-    "😱 Страхи": "fears.json",
-    "💫 Разрешения": "blessings.json"
+    "🎯 Фокус внимания": "focus_cards.json"
 }
 
-# Метки для текстовых колод (бывших "Причин")
-TEXT_LABELS = {
-    "🔥 Трансформация": "🔥 Необходимая трансформация",
-    "😱 Страхи": "😱 Твой страх",
-    "💫 Разрешения": "💫 Твоё разрешение"
+REASONS = {
+    "🔥 Трансформация": ("transformation.json", "🔥 Необходимая трансформация"),
+    "😱 Страхи": ("fears.json", "😱 Твой страх"),
+    "💫 Разрешения": ("blessings.json", "💫 Твоё разрешение")
 }
+
+TEXT_DECKS = ["transformation.json", "fears.json", "blessings.json"]
 
 # Общие функции
-def send_card_with_analysis(chat_id, card, is_text_deck=False):
+def send_card_with_analysis(chat_id, card, is_text_deck=False, message_suffix=""):
     if is_text_deck:
         text = card.get("text", "")
-        label = TEXT_LABELS.get(chat_id, "")
+        label = next((lbl for key, (file, lbl) in REASONS.items() if file == chat_id), "")
         bot.send_message(chat_id, f"{label}: {text}")
     elif "file_ids" in card:
         for file_id in card["file_ids"]:
@@ -92,17 +96,17 @@ def send_card_with_analysis(chat_id, card, is_text_deck=False):
     markup.add(InlineKeyboardButton("🗣 Обсудить это", callback_data="start_chat"))
     question = "Хочешь я помогу тебе понять глубже значение этой карты?" if not is_text_deck else "Хочешь поговорить об этом?"
     bot.send_message(chat_id, question, reply_markup=markup)
+    if message_suffix:
+        bot.send_message(chat_id, message_suffix)
 
 def send_random_card(chat_id, filename, message_suffix=""):
     cards = load_cards(filename)
     if not cards:
         bot.send_message(chat_id, "Колода пуста 😕")
         return
-    is_text_deck = filename in ["transformation.json", "fears.json", "blessings.json"]
+    is_text_deck = filename in TEXT_DECKS
     card = random.choice(cards)
-    send_card_with_analysis(chat_id, card, is_text_deck)
-    if message_suffix:
-        bot.send_message(chat_id, message_suffix)
+    send_card_with_analysis(chat_id, card, is_text_deck, message_suffix)
 
 # Обработчики команд и меню
 @bot.message_handler(commands=['start'])
@@ -117,6 +121,10 @@ def show_decks(message):
         reply_markup=deck_menu
     )
 
+@bot.message_handler(func=lambda m: m.text == "🧱 Причины")
+def show_reasons(message):
+    bot.send_message(message.chat.id, "Выбери, с чем хочешь поработать:", reply_markup=reason_menu)
+
 @bot.message_handler(func=lambda m: m.text == "🔮 Послание дня")
 def daily_message(message):
     all_files = list(DECKS.values())
@@ -125,9 +133,7 @@ def daily_message(message):
         bot.send_message(message.chat.id, "Нет доступных карт 😕")
         return
     card = random.choice(all_cards)
-    is_text_deck = any(card.get("text") and f in ["transformation.json", "fears.json", "blessings.json"] for f in DECKS.values())
-    send_card_with_analysis(message.chat.id, card, is_text_deck)
-    bot.send_message(message.chat.id, "Эта карта — твое послание на сегодня. Что она тебе говорит?")
+    send_card_with_analysis(message.chat.id, card, is_text_deck=False, message_suffix="Эта карта — твое послание на сегодня. Что она тебе говорит?")
 
 @bot.message_handler(func=lambda m: m.text == "🔔 Совет")
 def advice(message):
@@ -137,17 +143,21 @@ def advice(message):
         bot.send_message(message.chat.id, "Нет доступных карт 😕")
         return
     card = random.choice(all_cards)
-    is_text_deck = any(card.get("text") and f in ["transformation.json", "fears.json", "blessings.json"] for f in DECKS.values())
-    send_card_with_analysis(message.chat.id, card, is_text_deck)
-    bot.send_message(message.chat.id, "Что эта карта тебе советует?")
+    send_card_with_analysis(message.chat.id, card, is_text_deck=False, message_suffix="Что эта карта тебе советует?")
 
 @bot.message_handler(func=lambda m: m.text == "⬅️ Назад")
 def go_back(message):
-    bot.send_message(message.chat.id, "Возвращаюсь в главное меню:", reply_markup=main_menu)
+    current_menu = deck_menu if message.text in DECKS or message.text == "🧱 Причины" else main_menu
+    bot.send_message(message.chat.id, "Возвращаюсь назад:", reply_markup=current_menu)
 
 @bot.message_handler(func=lambda m: m.text in DECKS)
 def handle_deck_selection(message):
     send_random_card(message.chat.id, DECKS[message.text])
+
+@bot.message_handler(func=lambda m: m.text in REASONS)
+def handle_reason_selection(message):
+    filename, label = REASONS[message.text]
+    send_random_card(message.chat.id, filename)
 
 # Чат и анализ
 @bot.callback_query_handler(func=lambda call: call.data == "start_chat")
@@ -222,7 +232,7 @@ def call_gpt_for_image(image_bytes):
 def prompt_for_photo(message):
     bot.send_message(message.chat.id, "Отправь изображение карты для анализа.")
 
-@bot.message_handler(func=lambda m: m.text not in {btn.text for menu in [main_menu, deck_menu] for btn in menu.keyboard[0]})
+@bot.message_handler(func=lambda m: m.text not in {btn.text for menu in [main_menu, deck_menu, reason_menu] for btn in menu.keyboard[0]})
 def handle_fallback_text(message):
     bot.send_message(message.chat.id, "Я понимаю только команды и изображения. Выбери действие из меню.")
 
