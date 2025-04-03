@@ -16,6 +16,7 @@ app = Flask(__name__)
 # Хранилища
 user_sessions = {}
 last_images = {}
+last_cards = {}  # Хранилище для последней карты или текста
 
 # Загрузка карт из JSON
 def load_cards(filename):
@@ -83,18 +84,22 @@ def send_card_with_analysis(chat_id, card, filename, message_suffix=""):
         text = card.get("text", "")
         label = next((lbl for key, (file, lbl) in REASONS.items() if file == filename), "")
         bot.send_message(chat_id, f"{label}: {text}")
+        last_cards[chat_id] = {"type": "text", "content": f"{label}: {text}"}
     elif "file_ids" in card:
         for file_id in card["file_ids"]:
             bot.send_photo(chat_id, file_id)
             last_images[chat_id] = file_id
             has_image = True
+        last_cards[chat_id] = {"type": "image", "file_id": card.get("file_ids")[-1]}
     elif "file_id" in card:
         bot.send_photo(chat_id, card["file_id"])
         last_images[chat_id] = card["file_id"]
         has_image = True
+        last_cards[chat_id] = {"type": "image", "file_id": card["file_id"]}
     elif "text" in card:
         bot.send_message(chat_id, card["text"])
         last_images[chat_id] = None
+        last_cards[chat_id] = {"type": "text", "content": card["text"]}
 
     markup = InlineKeyboardMarkup()
     if has_image and not is_text_deck:
@@ -173,26 +178,55 @@ def start_chat_session(call):
     user_sessions[chat_id] = []
     markup = InlineKeyboardMarkup()
     markup.add(InlineKeyboardButton("Закончить чат", callback_data="end_chat"))
-    bot.send_message(chat_id, "Давай обсудим. Расскажи, что вызвало у тебя эта карта или текст?", reply_markup=markup)
+    bot.send_message(chat_id, "Давай заглянем в глубины твоего внутреннего мира. Что шепчет тебе эта карта или текст?", reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: call.data == "end_chat")
 def end_chat_session(call):
     chat_id = call.message.chat.id
     if chat_id in user_sessions:
         del user_sessions[chat_id]
-    bot.send_message(chat_id, "Чат завершен. Возвращаюсь в меню:", reply_markup=main_menu)
+    if chat_id in last_cards:
+        del last_cards[chat_id]
+    bot.send_message(chat_id, "Путешествие завершено. Возвращаюсь в главное меню:", reply_markup=main_menu)
 
 @bot.message_handler(func=lambda m: m.chat.id in user_sessions)
 def handle_user_chat(message):
     chat_id = message.chat.id
-    user_sessions[chat_id].append({"role": "user", "content": message.text})
-    response = call_gpt35(user_sessions[chat_id])
+    user_sessions[chat_id].append({"role":    "content": message.text})
+    response = call_gpt35(chat_id, user_sessions[chat_id])
     user_sessions[chat_id].append({"role": "assistant", "content": response})
     bot.send_message(chat_id, response)
 
-def call_gpt35(history):
+def call_gpt35(chat_id, history):
+    system_message = {
+        "role": "system",
+        "content": (
+            "Ты проводник в мир бессознательного, работающий с метафорическими картами и текстами. "
+            "Твоя роль — раскрывать образы и символы, чтобы пользователь мог заглянуть в глубины своей души. "
+            "Говори метафорично, поэтично, задавай вопросы, которые пробуждают осознание. "
+            "Не давай прямых ответов, а веди к пониманию через ассоциации и образы. "
+            "Каждая карта или текст — это зеркало, отражающее внутренний мир. Помогай пользователю увидеть это отражение и найти ответы на свои вопросы."
+        )
+    }
+
+    messages = [system_message]
+    if chat_id in last_cards:
+        last_card = last_cards[chat_id]
+        if last_card["type"] == "image":
+            messages.append({
+                "role": "user",
+                "content": "Передо мной карта-образ, как врата в бессознательное. Мы исследуем её символы."
+            })
+        elif last_card["type"] == "text":
+            messages.append({
+                "role": "user",
+                "content": f"Передо мной слова, как эхо из глубин: '{last_card['content']}'. Что они пробуждают?"
+            })
+
+    messages.extend(history)
+
     headers = {"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"}
-    data = {"model": "gpt-3.5-turbo", "messages": history, "max_tokens": 500}
+    data = {"model": "gpt-3.5-turbo", "messages": messages, "max_tokens": 500}
     response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data)
     return response.json()["choices"][0]["message"]["content"] if response.status_code == 200 else f"⚠️ Ошибка: {response.text}"
 
@@ -224,9 +258,9 @@ def call_gpt_for_image(image_bytes):
     data = {
         "model": "gpt-4o",
         "messages": [
-            {"role": "system", "content": "Ты психолог, интерпретирующий карты метафорично и символически. Задавай вопросы, если нужно."},
+            {"role": "system", "content": "Ты проводник в мир бессознательного, интерпретирующий образы карт. Говори метафорично, раскрывай символы, задавай вопросы для осознания."},
             {"role": "user", "content": [
-                {"type": "text", "text": "Проанализируй эту карту. Что она может символизировать?"},
+                {"type": "text", "text": "Взгляни на эту карту. Какие тени и свет она открывает? Что она шепчет о внутреннем мире?"},
                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
             ]}
         ],
@@ -237,11 +271,11 @@ def call_gpt_for_image(image_bytes):
 
 @bot.message_handler(func=lambda m: m.text == "🧠 Анализ фото")
 def prompt_for_photo(message):
-    bot.send_message(message.chat.id, "Отправь изображение карты для анализа.")
+    bot.send_message(message.chat.id, "Отправь изображение карты, чтобы заглянуть в её тайны.")
 
 @bot.message_handler(func=lambda m: m.text not in {btn.text for menu in [main_menu, deck_menu, reason_menu] for btn in menu.keyboard[0]})
 def handle_fallback_text(message):
-    bot.send_message(message.chat.id, "Я понимаю только команды и изображения. Выбери действие из меню.")
+    bot.send_message(message.chat.id, "Я слышу только шепот карт и твои вопросы. Выбери путь из меню.")
 
 # Вебхук
 @app.route(f"/{TOKEN}", methods=["POST"])
