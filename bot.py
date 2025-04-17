@@ -29,6 +29,9 @@ def load_cards(filename):
 # Меню
 main_menu = ReplyKeyboardMarkup(resize_keyboard=True)
 main_menu.add(
+    KeyboardButton("🎲 Да-Нет с кубиком")
+)
+main_menu.add(
     KeyboardButton("🔮 Послание дня"),
     KeyboardButton("🔔 Совет"),
     KeyboardButton("📚 Колоды"),
@@ -315,26 +318,24 @@ yes_no_button = KeyboardButton("🎲 Да-Нет с кубиком")
 main_menu.add(yes_no_button)
 
 # Обработка команды для броска кубика
-@bot.message_handler(func=lambda message: message.text == "🎲 Да-Нет с кубиком")
-def handle_yes_no(message):
     yes_no_dice(message)
 
+import time
 
-# Обновление: переместим добавление кнопки до запуска бота и добавим пояснение в сообщении
 @bot.message_handler(func=lambda message: message.text == "🎲 Да-Нет с кубиком")
 def handle_yes_no(message):
+    bot.send_message(message.chat.id, "💡Задумайтесь над своим вопросом...")
+    time.sleep(1)
+    bot.send_message(message.chat.id, "🎲 Бросаю кубик...")
+    time.sleep(1)
+    bot.send_message(message.chat.id, "🔄 Он крутится...")
+    time.sleep(1)
+
     dice_roll = random.randint(1, 12)
-    if dice_roll <= 7:
-        result = "❌ Нет"
-    else:
-        result = "✅ Да"
+    result = "❌ Нет" if dice_roll <= 7 else "✅ Да"
+
     bot.send_message(
         message.chat.id,
-        f"💡Задумайтесь над своим вопросом.\nБросок кубика: {dice_roll}\nРезультат: {result}",
+        f"🎲 Выпало: {dice_roll}\nРезультат: {result}",
         reply_markup=main_menu
     )
-
-# Вставим кнопку "Да-Нет" в главное меню (если по какой-то причине она ещё не добавлена)
-yes_no_button = KeyboardButton("🎲 Да-Нет с кубиком")
-if yes_no_button not in main_menu.keyboard[0]:
-    main_menu.add(yes_no_button)
