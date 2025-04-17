@@ -318,3 +318,23 @@ main_menu.add(yes_no_button)
 @bot.message_handler(func=lambda message: message.text == "🎲 Да-Нет с кубиком")
 def handle_yes_no(message):
     yes_no_dice(message)
+
+
+# Обновление: переместим добавление кнопки до запуска бота и добавим пояснение в сообщении
+@bot.message_handler(func=lambda message: message.text == "🎲 Да-Нет с кубиком")
+def handle_yes_no(message):
+    dice_roll = random.randint(1, 12)
+    if dice_roll <= 7:
+        result = "❌ Нет"
+    else:
+        result = "✅ Да"
+    bot.send_message(
+        message.chat.id,
+        f"💡Задумайтесь над своим вопросом.\nБросок кубика: {dice_roll}\nРезультат: {result}",
+        reply_markup=main_menu
+    )
+
+# Вставим кнопку "Да-Нет" в главное меню (если по какой-то причине она ещё не добавлена)
+yes_no_button = KeyboardButton("🎲 Да-Нет с кубиком")
+if yes_no_button not in main_menu.keyboard[0]:
+    main_menu.add(yes_no_button)
