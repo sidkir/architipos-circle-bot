@@ -4,6 +4,7 @@ import json
 import os
 import requests
 import base64
+import time
 from flask import Flask, request
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
@@ -29,13 +30,11 @@ def load_cards(filename):
 # Меню
 main_menu = ReplyKeyboardMarkup(resize_keyboard=True)
 main_menu.add(
-    KeyboardButton("🎲 Да-Нет с кубиком")
-)
-main_menu.add(
     KeyboardButton("🔮 Послание дня"),
     KeyboardButton("🔔 Совет"),
     KeyboardButton("📚 Колоды"),
-    KeyboardButton("🧠 Анализ фото")
+    KeyboardButton("🧠 Анализ фото"),
+    KeyboardButton("🎲 Да/Нет")
 )
 
 deck_menu = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -95,7 +94,7 @@ def send_card_with_analysis(chat_id, card, filename, message_suffix=""):
             has_image = True
         last_cards[chat_id] = {"type": "image", "file_id": card.get("file_ids")[-1]}
     elif "file_id" in card:
-        bot.send_photo(chat_id, card["file_id"])
+        bot.send_message(chat_id, card["text"])
         last_images[chat_id] = card["file_id"]
         has_image = True
         last_cards[chat_id] = {"type": "image", "file_id": card["file_id"]}
@@ -159,6 +158,22 @@ def advice(message):
     card = random.choice(all_cards)
     filename = next((f for f in DECKS.values() if card in load_cards(f)), all_files[0])
     send_card_with_analysis(message.chat.id, card, filename, "Что эта карта тебе советует?")
+
+@bot.message_handler(func=lambda m: m.text == "🎲 Да/Нет")
+def yes_no_dice(message):
+    chat_id = message.chat.id
+    # Отправляем начальное сообщение
+    msg = bot.send_message(chat_id, "💡 Задумайтесь над своим вопросом...")
+    time.sleep(1)
+    # Обновляем сообщение для анимации
+    bot.edit_message_text("🎲 Бросаю кубик...", chat_id, msg.message_id)
+    time.sleep(1)
+    bot.edit_message_text("🔄 Он крутится...", chat_id, msg.message_id)
+    time.sleep(1)
+    # Симуляция броска 12-гранного кубика
+    roll = random.randint(1, 12)
+    result = "✅ Да" if roll >= 7 else "❌ Нет"
+    bot.edit_message_text(f"✨ Выпало: {roll} — {result}", chat_id, msg.message_id)
 
 @bot.message_handler(func=lambda m: m.text == "⬅️ Назад")
 def go_back(message):
@@ -291,51 +306,3 @@ if __name__ == "__main__":
     bot.remove_webhook()
     bot.set_webhook(url=f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/{TOKEN}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
-
-
-# Добавление функции Да-Нет с броском 12-гранного кубика
-
-def yes_no_dice(message):
-    # Генерация случайного числа от 1 до 12
-    dice_roll = random.randint(1, 12)
-    
-    # Определение результата
-    if dice_roll <= 6:
-        response = "Нет"
-    else:
-        response = "Да"
-    
-    # Отправка сообщения с результатом
-    bot.send_message(
-        message.chat.id,
-        f"Бросок кубика: {dice_roll}\nРезультат: {response}",
-        reply_markup=main_menu  # Возвращаем главное меню после получения ответа
-    )
-
-# Добавление кнопки в главное меню
-yes_no_button = KeyboardButton("🎲 Да-Нет с кубиком")
-main_menu.add(yes_no_button)
-
-# Обработка команды для броска кубика
-    yes_no_dice(message)
-
-import time
-
-@bot.message_handler(func=lambda message: message.text == "🎲 Да-Нет с кубиком")
-def handle_yes_no(message):
-    bot.send_message(message.chat.id, "💡Задумайтесь над своим вопросом...")
-    time.sleep(1)
-    bot.send_message(message.chat.id, "🎲 Бросаю кубик...")
-    time.sleep(1)
-    bot.send_message(message.chat.id, "🔄 Он крутится...")
-    time.sleep(1)
-
-    dice_roll = random.randint(1, 12)
-    result = "❌ Нет" if dice_roll <= 7 else "✅ Да"
-
-    bot.send_message(
-        message.chat.id,
-        f"🎲 Выпало: {dice_roll}\nРезультат: {result}",
-        reply_markup=main_menu
-    )
