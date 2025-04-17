@@ -288,3 +288,33 @@ if __name__ == "__main__":
     bot.remove_webhook()
     bot.set_webhook(url=f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}/{TOKEN}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+
+
+# Добавление функции Да-Нет с броском 12-гранного кубика
+
+def yes_no_dice(message):
+    # Генерация случайного числа от 1 до 12
+    dice_roll = random.randint(1, 12)
+    
+    # Определение результата
+    if dice_roll <= 6:
+        response = "Нет"
+    else:
+        response = "Да"
+    
+    # Отправка сообщения с результатом
+    bot.send_message(
+        message.chat.id,
+        f"Бросок кубика: {dice_roll}\nРезультат: {response}",
+        reply_markup=main_menu  # Возвращаем главное меню после получения ответа
+    )
+
+# Добавление кнопки в главное меню
+yes_no_button = KeyboardButton("🎲 Да-Нет с кубиком")
+main_menu.add(yes_no_button)
+
+# Обработка команды для броска кубика
+@bot.message_handler(func=lambda message: message.text == "🎲 Да-Нет с кубиком")
+def handle_yes_no(message):
+    yes_no_dice(message)
