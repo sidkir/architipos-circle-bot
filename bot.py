@@ -94,7 +94,7 @@ def send_card_with_analysis(chat_id, card, filename, message_suffix=""):
             has_image = True
         last_cards[chat_id] = {"type": "image", "file_id": card.get("file_ids")[-1]}
     elif "file_id" in card:
-        bot.send_message(chat_id, card["text"])
+        bot.send_photo(chat_id, card["file_id"])
         last_images[chat_id] = card["file_id"]
         has_image = True
         last_cards[chat_id] = {"type": "image", "file_id": card["file_id"]}
@@ -177,8 +177,14 @@ def yes_no_dice(message):
 
 @bot.message_handler(func=lambda m: m.text == "⬅️ Назад")
 def go_back(message):
-    current_menu = deck_menu if message.text in DECKS or message.text == "🧱 Причины" else main_menu
-    bot.send_message(message.chat.id, "Возвращаюсь назад:", reply_markup=current_menu)
+    # Check if the user is in the reasons menu
+    if message.text in REASONS:
+        bot.send_message(message.chat.id, "Возвращаюсь назад:", reply_markup=reason_menu)
+    # Check if the user is in the decks menu or accessed reasons
+    elif message.text in DECKS or message.text == "🧱 Причины":
+        bot.send_message(message.chat.id, "Возвращаюсь назад:", reply_markup=deck_menu)
+    else:
+        bot.send_message(message.chat.id, "Возвращаюсь назад:", reply_markup=main_menu)
 
 @bot.message_handler(func=lambda m: m.text in DECKS)
 def handle_deck_selection(message):
