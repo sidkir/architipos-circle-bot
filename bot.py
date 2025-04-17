@@ -77,8 +77,30 @@ REASONS = {
 
 TEXT_DECKS = ["transformation.json", "fears.json", "blessings.json"]
 
+# Deck-specific messages
+DECK_SPECIFIC_MESSAGES = {
+    "🧿 Архетипы": "Эта фигура прошла (или проживает) какой-то жизненный опыт и хочет поделиться с тобой чем-то важным…. Прислушайся. Какое послание она тебе несет? Что хочет сказать? На что обращает твое внимание?",
+    "🧚 Сказочные герои": "Эта фигура прошла (или проживает) какой-то жизненный опыт и хочет поделиться с тобой чем-то важным…. Прислушайся. Какое послание она тебе несет? Что хочет сказать? На что обращает твое внимание?",
+    "🎯 Фокус внимания": "Это послание говорит о том, чтобы ты сосредоточил свое внимание на этой теме. Это фокус внимания. Посмотри на это в своей жизни. Как оно представлено в ней? Как влияет? Каково послание этой карты?",
+    "🌀 Процессы": "На этот процесс тебе стоит обратить внимание. Как он представлен в твоей жизни? Каково его влияние? Какое послание через эту карту ты получаешь?",
+    "🐾 Послания зверей": "Какое ощущение у тебя возникает, когда ты смотришь на это животное, на текст карты? Как это отражается в твоей жизни? Какое послание тебе оно несет?",
+    "🐅 Животные силы": "Какое ощущение у тебя возникает, когда ты смотришь на это животное, на текст карты? Как это отражается в твоей жизни? Какое послание тебе оно несет?",
+    "🪶 Мудрость": "Какое послание для тебя несет эта притча? Как эта мудрость может повлиять на твою жизнь?",
+    "🔥 Трансформация": "Это то, на что тебе надо обратить свое внимание. Как это связано с твоей жизнью, с ситуацией? Почему именно этот текст выпал тебе сегодня? Какое послание тебе он несет?",
+    "😱 Страхи": "Это то, на что тебе надо обратить свое внимание. Как это связано с твоей жизнью, с ситуацией? Почему именно этот текст выпал тебе сегодня? Какое послание тебе он несет?",
+    "💫 Разрешения": "Это то, на что тебе надо обратить свое внимание. Как это связано с твоей жизнью, с ситуацией? Почему именно этот текст выпал тебе сегодня? Какое послание тебе он несет?"
+}
+
+ADVICE_SPECIFIC_MESSAGES = {
+    "🧿 Архетипы": "Эта фигура прошла (или проживает) какой-то жизненный опыт, имеет свой характер и историю и она хочет поделиться с тобой чем-то важным…. Прислушайся. Какой совет она тебе дает? В твоей ситуации что она тебе советует делать или не делать?",
+    "🧚 Сказочные герои": "Эта фигура прошла (или проживает) какой-то жизненный опыт, имеет свой характер и история и она хочет поделиться с тобой чем-то важным…. Прислушайся. Какой совет она тебе дает? В твоей ситуации что она тебе советует делать или не делать?",
+    "🎯 Фокус внимания": "Эта карта советует тебе обратить внимание на эту тему в контексте твоего запроса/ситуации. Как эта тема связана с тобой? Совет – взгляни на это.",
+    "🐾 Послания зверей": "Это животное обладает своими уникальными чертами и силой. Что это за черты и характеристики? Какой совет оно тебе дает? Что делать или не делать? Что и как оно бы сделало?",
+    "🐅 Животные силы": "Это животное обладает своими уникальными чертами и силой. Что это за черты и характеристики? Какой совет оно тебе дает? Что делать или не делать? Что и как оно бы сделало?"
+}
+
 # Общие функции
-def send_card_with_analysis(chat_id, card, filename, message_suffix=""):
+def send_card_with_analysis(chat_id, card, filename, message_suffix="", deck_specific_text=""):
     is_text_deck = filename in TEXT_DECKS
     has_image = False
 
@@ -103,6 +125,10 @@ def send_card_with_analysis(chat_id, card, filename, message_suffix=""):
         last_images[chat_id] = None
         last_cards[chat_id] = {"type": "text", "content": card["text"]}
 
+    # Send deck-specific text if provided
+    if deck_specific_text:
+        bot.send_message(chat_id, deck_specific_text)
+
     markup = InlineKeyboardMarkup()
     if has_image and not is_text_deck:
         markup.add(InlineKeyboardButton("Анализировать карту", callback_data="analyze_last"))
@@ -112,13 +138,14 @@ def send_card_with_analysis(chat_id, card, filename, message_suffix=""):
     if message_suffix:
         bot.send_message(chat_id, message_suffix)
 
-def send_random_card(chat_id, filename, message_suffix=""):
+def send_random_card(chat_id, filename, message_suffix="", deck_key=""):
     cards = load_cards(filename)
     if not cards:
         bot.send_message(chat_id, "Колода пуста 😕")
         return
     card = random.choice(cards)
-    send_card_with_analysis(chat_id, card, filename, message_suffix)
+    deck_specific_text = DECK_SPECIFIC_MESSAGES.get(deck_key, "") if deck_key else ""
+    send_card_with_analysis(chat_id, card, filename, message_suffix, deck_specific_text)
 
 # Обработчики команд и меню
 @bot.message_handler(commands=['start'])
@@ -139,48 +166,62 @@ def show_reasons(message):
 
 @bot.message_handler(func=lambda m: m.text == "🔮 Послание дня")
 def daily_message(message):
-    all_files = list(DECKS.values())
+    all_files = list(DECKS.values()) + [v[0] for v in REASONS.values()]
     all_cards = [card for file in all_files for card in load_cards(file)]
     if not all_cards:
         bot.send_message(message.chat.id, "Нет доступных карт 😕")
         return
     card = random.choice(all_cards)
-    filename = next((f for f in DECKS.values() if card in load_cards(f)), all_files[0])
-    send_card_with_analysis(message.chat.id, card, filename, "Эта карта — твое послание на сегодня. Что она тебе говорит?")
+    filename = next((f for f in all_files if card in load_cards(f)), all_files[0])
+    deck_key = next((k for k, v in DECKS.items() if v == filename), None)
+    if not deck_key:
+        deck_key = next((k for k, (f, _) in REASONS.items() if f == filename), "")
+    deck_specific_text = DECK_SPECIFIC_MESSAGES.get(deck_key, "")
+    send_card_with_analysis(
+        message.chat.id,
+        card,
+        filename,
+        "🔮 Эта карта — твоё послание дня. Остановись. Почувствуй. Что она открывает тебе сейчас? Какое послание для тебя в ней заложено? Что она говорит тебе важного, на что надо обратить внимание?",
+        deck_specific_text
+    )
 
 @bot.message_handler(func=lambda m: m.text == "🔔 Совет")
 def advice(message):
-    all_files = list(DECKS.values())
+    allowed_decks = {k: v for k, v in DECKS.items() if k not in ["🪶 Мудрость", "🌀 Процессы"]}
+    all_files = list(allowed_decks.values())
     all_cards = [card for file in all_files for card in load_cards(file)]
     if not all_cards:
         bot.send_message(message.chat.id, "Нет доступных карт 😕")
         return
     card = random.choice(all_cards)
-    filename = next((f for f in DECKS.values() if card in load_cards(f)), all_files[0])
-    send_card_with_analysis(message.chat.id, card, filename, "Что эта карта тебе советует?")
+    filename = next((f for f in all_files if card in load_cards(f)), all_files[0])
+    deck_key = next((k for k, v in allowed_decks.items() if v == filename), "")
+    deck_specific_text = ADVICE_SPECIFIC_MESSAGES.get(deck_key, "")
+    send_card_with_analysis(
+        message.chat.id,
+        card,
+        filename,
+        "Это совет для тебя в твоей ситуации.",
+        deck_specific_text
+    )
 
 @bot.message_handler(func=lambda m: m.text == "🎲 Да/Нет")
 def yes_no_dice(message):
     chat_id = message.chat.id
-    # Отправляем начальное сообщение
     msg = bot.send_message(chat_id, "💡 Задумайтесь над своим вопросом...")
     time.sleep(1)
-    # Обновляем сообщение для анимации
     bot.edit_message_text("🎲 Бросаю кубик...", chat_id, msg.message_id)
     time.sleep(1)
     bot.edit_message_text("🔄 Он крутится...", chat_id, msg.message_id)
     time.sleep(1)
-    # Симуляция броска 12-гранного кубика
     roll = random.randint(1, 12)
     result = "✅ Да" if roll >= 7 else "❌ Нет"
     bot.edit_message_text(f"✨ Выпало: {roll} — {result}", chat_id, msg.message_id)
 
 @bot.message_handler(func=lambda m: m.text == "⬅️ Назад")
 def go_back(message):
-    # Check if the user is in the reasons menu
     if message.text in REASONS:
         bot.send_message(message.chat.id, "Возвращаюсь назад:", reply_markup=reason_menu)
-    # Check if the user is in the decks menu or accessed reasons
     elif message.text in DECKS or message.text == "🧱 Причины":
         bot.send_message(message.chat.id, "Возвращаюсь назад:", reply_markup=deck_menu)
     else:
@@ -188,12 +229,15 @@ def go_back(message):
 
 @bot.message_handler(func=lambda m: m.text in DECKS)
 def handle_deck_selection(message):
-    send_random_card(message.chat.id, DECKS[message.text])
+    deck_key = message.text
+    filename = DECKS[deck_key]
+    send_random_card(message.chat.id, filename, deck_key=deck_key)
 
 @bot.message_handler(func=lambda m: m.text in REASONS)
 def handle_reason_selection(message):
-    filename, _ = REASONS[message.text]
-    send_random_card(message.chat.id, filename)
+    deck_key = message.text
+    filename, _ = REASONS[deck_key]
+    send_random_card(message.chat.id, filename, deck_key=deck_key)
 
 # Чат и анализ
 @bot.callback_query_handler(func=lambda call: call.data == "start_chat")
