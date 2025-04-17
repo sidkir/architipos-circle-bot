@@ -201,7 +201,7 @@ def advice(message):
         message.chat.id,
         card,
         filename,
-        "Это совет для тебя в твоей ситуации.",
+        "",
         deck_specific_text
     )
 
